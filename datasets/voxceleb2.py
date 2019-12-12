@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import os
-from dataset.basic_dataset import BasicDataset
+from datasets.basic_dataset import BasicDataset
 
 
 class VoxCeleb2(BasicDataset):
@@ -19,8 +19,8 @@ class VoxCeleb2(BasicDataset):
         for speaker_id in os.listdir(dev_path):
             path = os.path.join(dev_path, speaker_id)
             for p_dir, dirs, files in os.walk(path):
-                m4a_files = set(filter(lambda fname: fname.endswith('.ogg'), files))
-                m4a_files = set(map(lambda fname: os.path.join(p_dir, fname), m4a_files))
+                m4a_files = set(map(lambda fname: os.path.join(p_dir, fname), files))
+                m4a_files = set(filter(lambda fpath: fpath.endswith('.ogg') and self.is_valid_audio(fpath), m4a_files))
                 if len(m4a_files) > 0:
                     speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | m4a_files
 

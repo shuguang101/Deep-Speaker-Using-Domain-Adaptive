@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import os
-from dataset.basic_dataset import BasicDataset
+from datasets.basic_dataset import BasicDataset
 
 
 class LibriSpeech(BasicDataset):
@@ -27,9 +27,9 @@ class LibriSpeech(BasicDataset):
             for speaker_id in os.listdir(directory):
                 path = os.path.join(directory, speaker_id)
                 for p_dir, dirs, files in os.walk(path):
-                    flac_files = set(filter(lambda fname: fname.endswith('.ogg'), files))
-                    flac_files = set(map(lambda fname: os.path.join(p_dir, fname), flac_files))
-                    if len(flac_files) > 0:
-                        speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | flac_files
+                    paths = set(map(lambda fname: os.path.join(p_dir, fname), files))
+                    paths = set(filter(lambda fpath: fpath.endswith('.ogg') and self.is_valid_audio(fpath), paths))
+                    if len(paths) > 0:
+                        speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | paths
 
         return speaker_dict

@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import os
-from dataset.basic_dataset import BasicDataset
+from datasets.basic_dataset import BasicDataset
 
 
 class ST_CMDS_20170001_1(BasicDataset):
@@ -9,8 +9,8 @@ class ST_CMDS_20170001_1(BasicDataset):
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
         speaker_dict = dict()
         for file in os.listdir(root_directory):
-            if file.endswith('.ogg'):
-                path = os.path.join(root_directory, file)
+            path = os.path.join(root_directory, file)
+            if path.endswith('.ogg') and self.is_valid_audio(path):
                 speaker_id = file[8:14]
                 speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | {path}
 

@@ -9,6 +9,7 @@ class DefaultConfig(object):
     # Nyquist定理(奈奎斯特): 如果想要从数字信号无损转到模拟信号，我们需要以最高信号频率的2倍的采样频率进行采样。
     # 通常人的声音的频率大概在3kHz~4kHz ，因此语音识别通常使用8k或者16k的wav提取特征。
     # 16kHz采样率的音频，傅里叶变换之后的频率范围为0-8KHz。
+    # 人耳频率感受范围: 20Hz-20000Hz
 
     # Target Sampling rate, related to the Nyquist conditions, which affects
     # the range frequencies we can detect. By using STFT function,
