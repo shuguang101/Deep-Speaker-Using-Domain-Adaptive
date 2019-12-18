@@ -26,6 +26,12 @@ class BasicDataset(Dataset):
             used_duration: 2.0,
             icon_size: 15,
             icon_alpha: 0.35,
+            do_augmentation: True,
+            n_fft: 2048,
+            win_length: 1103,
+            hop_length: 275,
+            window: blackman,
+            n_mels:256,
         """
 
         # 数据集根目录
@@ -155,8 +161,35 @@ class BasicDataset(Dataset):
         return sliced_audio_data
 
     def get_features(self, audio_data):
+        # 获取音频采样频率
+        sr = self.other_params.get('sr', 44100)
+        # 是否进行augmentation, shape会发生变化(time_dim 会边长或变短)
+        do_augmentation = self.other_params.get('do_augmentation', True)
+        # 获取频谱相关参数
+        n_fft = self.other_params.get('n_fft', 2048)
+        win_length = self.other_params.get('win_length', 1103)  # 25ms (sr=44100)
+        hop_length = self.other_params.get('hop_length', 275)  # 1/4 of window size
+        window = self.other_params.get('window', 'blackman')
+        n_mels = self.other_params.get('n_mels', 256)
+
+        # 进行数据增强
+        if do_augmentation:
+            audio_data = audio_util.do_audio_augmentation(audio_data, sr)
+
+        # 滤波去除噪音
+        audio_data = audio_util.de_noise(audio_data, sr)
+
+        # 获取fbank特征
+        f_bank = audio_util.fbank(audio_data, sr,
+                                  n_fft=n_fft,
+                                  win_length=win_length,
+                                  hop_length=hop_length,
+                                  window=window,
+                                  n_mels=n_mels
+                                  )
+
         # features shape: time_dim X feature_dim
-        return audio_data
+        return f_bank
 
     def __getitem__(self, p_index):
         y_a, y_p, y_n, p_nid, p_did, n_nid, n_did = self.__read_audio_tuple__(p_index)

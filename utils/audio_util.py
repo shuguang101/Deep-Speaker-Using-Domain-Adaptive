@@ -15,7 +15,7 @@ def load_audio_as_mono(audio_path, output_sample_rate):
     """
 
     mono_loader = standard.MonoLoader(filename=audio_path, sampleRate=output_sample_rate)
-    y = mono_loader()
+    y = mono_loader().astype(np.float32)
 
     return y
 
@@ -24,18 +24,18 @@ def de_noise(audio_data, audio_sr):
     # 滤波去除噪音
 
     # 维纳滤波器去噪,时域
-    new_audio_data = signal.wiener(audio_data)
+    new_audio_data = signal.wiener(audio_data).astype(np.float32)
 
     # 趋势消除
-    new_audio_data = signal.detrend(new_audio_data)
+    new_audio_data = signal.detrend(new_audio_data).astype(np.float32)
 
     # 去除直流成分, 高通滤波器
     dc_removal = standard.DCRemoval(cutoffFrequency=40, sampleRate=audio_sr)
-    new_audio_data = dc_removal(new_audio_data)
+    new_audio_data = dc_removal(new_audio_data).astype(np.float32)
 
     # 语音信号预加重，预增强系数范围为[0,1),常用值0.97
     # 对高频部分进行加重，去除口唇辐射影响, 增加高频分辨率
-    new_audio_data = pre_emphasis_filter(new_audio_data)
+    new_audio_data = pre_emphasis_filter(new_audio_data).astype(np.float32)
 
     return new_audio_data
 
@@ -45,6 +45,7 @@ def fbank(audio_data, audio_sr, **kwargs):
     win_length = kwargs.get('win_length', 1103)  # 25ms (sr=44100)
     hop_length = kwargs.get('hop_length', 275)  # 1/4 of window size
     window = kwargs.get('window', 'blackman')
+    n_mels = kwargs.get('n_mels', 256)
 
     spec_data = librosa.stft(audio_data, n_fft=n_fft, hop_length=hop_length,
                              window=window, win_length=win_length, center=True)
@@ -53,7 +54,7 @@ def fbank(audio_data, audio_sr, **kwargs):
     magnitude, phase = np.abs(spec_data), np.angle(spec_data)
 
     # 应用mel滤波器
-    mel_basis = librosa.filters.mel(audio_sr, n_fft, n_mels=256)
+    mel_basis = librosa.filters.mel(audio_sr, n_fft, n_mels=n_mels)
     mel_spec = np.dot(mel_basis, magnitude ** 2)
 
     # 获取fbank特征, shape=[n_mels, t]
@@ -61,6 +62,7 @@ def fbank(audio_data, audio_sr, **kwargs):
 
     # 标准化
     f_bank = (f_bank - np.mean(f_bank, axis=0)) / (np.std(f_bank, axis=0) + 2e-12)
+    f_bank = f_bank.astype(np.float32)
 
     return f_bank.T
 
@@ -72,6 +74,7 @@ def do_audio_augmentation(audio_data, audio_sr):
 
     # If rate > 1, then the signal is speed up.
     # If rate < 1, then the signal is slowed down.
+    # return: y_stretch : np.ndarray [shape=(rate * n,)]
     new_audio_data = librosa.effects.time_stretch(new_audio_data, random.randint(95, 105) * 0.01)
 
     # pitch_shift
