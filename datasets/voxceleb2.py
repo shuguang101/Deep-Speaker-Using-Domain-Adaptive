@@ -5,6 +5,8 @@ from datasets.basic_dataset import BasicDataset
 
 
 class VoxCeleb2(BasicDataset):
+    ext_tuples = ('.wav', '.ogg')
+
     # speaker id of test and dev have no overlap
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
         if dataset_type_name == 'dev':
@@ -19,9 +21,10 @@ class VoxCeleb2(BasicDataset):
         for speaker_id in os.listdir(dev_path):
             path = os.path.join(dev_path, speaker_id)
             for p_dir, dirs, files in os.walk(path):
-                m4a_files = set(map(lambda fname: os.path.join(p_dir, fname), files))
-                m4a_files = set(filter(lambda fpath: fpath.endswith('.ogg') and self.is_valid_audio(fpath), m4a_files))
-                if len(m4a_files) > 0:
-                    speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | m4a_files
+                audio_files = set(map(lambda fname: os.path.join(p_dir, fname), files))
+                audio_files = set(filter(lambda fpath: self.is_in_exts(fpath, self.ext_tuples)
+                                                       and self.is_valid_audio(fpath), audio_files))
+                if len(audio_files) > 0:
+                    speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | audio_files
 
         return speaker_dict

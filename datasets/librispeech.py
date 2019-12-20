@@ -5,6 +5,7 @@ from datasets.basic_dataset import BasicDataset
 
 
 class LibriSpeech(BasicDataset):
+    ext_tuples = ('.wav', '.ogg')
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
 
@@ -28,7 +29,8 @@ class LibriSpeech(BasicDataset):
                 path = os.path.join(directory, speaker_id)
                 for p_dir, dirs, files in os.walk(path):
                     paths = set(map(lambda fname: os.path.join(p_dir, fname), files))
-                    paths = set(filter(lambda fpath: fpath.endswith('.ogg') and self.is_valid_audio(fpath), paths))
+                    paths = set(filter(lambda fpath: self.is_in_exts(path, self.ext_tuples)
+                                                     and self.is_valid_audio(fpath), paths))
                     if len(paths) > 0:
                         speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | paths
 

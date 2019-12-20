@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 
 
+import os
 import random
 import copy
 import torch
@@ -12,6 +13,20 @@ from utils import pil_util
 
 
 class BasicDataset(Dataset):
+
+    @staticmethod
+    def get_ext(path):
+        # 返回文件扩展名, 例如: .py .ogg .wav
+        try:
+            ext = os.path.splitext(path)[-1]
+        except Exception:
+            ext = None
+        return ext
+
+    def is_in_exts(self, path, ext_tuples):
+        # 判断文件扩展名是否在ext_tuples内
+        ext = self.get_ext(path)
+        return ext in ext_tuples
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
         # return a dict, which key is speaker id, value is a set() of audio path
@@ -47,7 +62,7 @@ class BasicDataset(Dataset):
         # 域个数
         self.num_of_domain = len(speaker_dict_tuple)
         # 选取的原始音频帧长度
-        self.used_nframe = kwargs.get('used_duration', 2.0) * kwargs.get('sr', 44100)
+        self.used_nframe = int(kwargs.get('used_duration', 2.0) * kwargs.get('sr', 44100))
 
         # 获取录音文件字典
         if root_directory is not None:
@@ -132,11 +147,6 @@ class BasicDataset(Dataset):
         y_p = audio_util.load_audio_as_mono(p_path, self.other_params.get('sr', 44100))
         y_n = audio_util.load_audio_as_mono(n_path, self.other_params.get('sr', 44100))
 
-        # 在原始音频中随机选取一段
-        y_a = self.audio_data_slice(y_a)
-        y_p = self.audio_data_slice(y_p)
-        y_n = self.audio_data_slice(y_n)
-
         return y_a, y_p, y_n, p_nid, p_did, n_nid, n_did
 
     def is_valid_audio(self, audio_path):
@@ -178,6 +188,9 @@ class BasicDataset(Dataset):
 
         # 滤波去除噪音
         audio_data = audio_util.de_noise(audio_data, sr)
+
+        # 在原始音频中随机选取一段
+        audio_data = self.audio_data_slice(audio_data)
 
         # 获取fbank特征
         f_bank = audio_util.fbank(audio_data, sr,
@@ -221,7 +234,6 @@ class BasicDataset(Dataset):
             if i >= max_bs:
                 break
             y = audio_util.load_audio_as_mono(path, sr)
-            y = self.audio_data_slice(y)
             f = self.get_features(y)
             speaker_data_list.append(f)
 
@@ -258,7 +270,6 @@ class BasicDataset(Dataset):
             path = random.choice(path_list)
             # 读取音频,抽取特征
             y = audio_util.load_audio_as_mono(path, sr)
-            y = self.audio_data_slice(y)
             f = self.get_features(y)
 
             speaker_data_list.append(f)

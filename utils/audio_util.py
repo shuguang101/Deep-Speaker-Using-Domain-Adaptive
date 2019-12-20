@@ -2,10 +2,15 @@
 
 import librosa
 import random
+import os
+import subprocess
 import numpy as np
+import scipy.signal as signal
 from essentia import standard
 from scipy.signal import lfilter
-import scipy.signal as signal
+
+from numpy import (asarray, mean, ndarray, ones, product, ravel, where)
+from scipy.signal.signaltools import correlate
 
 
 def load_audio_as_mono(audio_path, output_sample_rate):
@@ -24,18 +29,18 @@ def de_noise(audio_data, audio_sr):
     # 滤波去除噪音
 
     # 维纳滤波器去噪,时域
-    new_audio_data = signal.wiener(audio_data).astype(np.float32)
+    new_audio_data = wiener_my(audio_data)
 
     # 趋势消除
     new_audio_data = signal.detrend(new_audio_data).astype(np.float32)
 
     # 去除直流成分, 高通滤波器
     dc_removal = standard.DCRemoval(cutoffFrequency=40, sampleRate=audio_sr)
-    new_audio_data = dc_removal(new_audio_data).astype(np.float32)
+    new_audio_data = dc_removal(new_audio_data)
 
     # 语音信号预加重，预增强系数范围为[0,1),常用值0.97
     # 对高频部分进行加重，去除口唇辐射影响, 增加高频分辨率
-    new_audio_data = pre_emphasis_filter(new_audio_data).astype(np.float32)
+    new_audio_data = pre_emphasis_filter(new_audio_data)
 
     return new_audio_data
 
@@ -129,3 +134,111 @@ def rm_dc_n_dither(sin, sr):
     s_out = sin + 1e-6 * spow * dither
 
     return s_out
+
+
+def wiener_my(im, mysize=None, noise=None):
+    # copied from signaltools.py, and fixed the 'divide by zero encountered' problem.
+
+    """
+    Perform a Wiener filter on an N-dimensional array.
+
+    Apply a Wiener filter to the N-dimensional array `im`.
+
+    Parameters
+    ----------
+    im : ndarray
+        An N-dimensional array.
+    mysize : int or array_like, optional
+        A scalar or an N-length list giving the size of the Wiener filter
+        window in each dimension.  Elements of mysize should be odd.
+        If mysize is a scalar, then this scalar is used as the size
+        in each dimension.
+    noise : float, optional
+        The noise-power to use. If None, then noise is estimated as the
+        average of the local variance of the input.
+
+    Returns
+    -------
+    out : ndarray
+        Wiener filtered result with the same shape as `im`.
+
+    """
+    im = asarray(im)
+    if mysize is None:
+        mysize = [3] * im.ndim
+    mysize = asarray(mysize)
+    if mysize.shape == ():
+        mysize = np.repeat(mysize.item(), im.ndim)
+
+    # Estimate the local mean
+    lMean = correlate(im, ones(mysize), 'same') / product(mysize, axis=0)
+
+    # Estimate the local variance
+    lVar = (correlate(im ** 2, ones(mysize), 'same') /
+            product(mysize, axis=0) - lMean ** 2)
+
+    # 防止 除零 错误
+    lVar += np.finfo(np.float32).eps
+
+    # Estimate the noise power if needed.
+    if noise is None:
+        noise = mean(ravel(lVar), axis=0)
+
+    res = (im - lMean)
+    res *= (1 - noise / lVar)
+    res += lMean
+    out = where(lVar < noise, lMean, res)
+
+    return out
+
+
+def convert_audio_files(root_dir,
+                        raw_file_ext_tuples=('.wav',),
+                        new_file_ext='.ogg',
+                        sr=44100,
+                        channel=1,
+                        remove_raw_file=False):
+    """
+    使用ffmpeg转换音频文件格式及采样率
+    """
+
+    # 使用ffmpeg转换audio文件
+    def audio_convert(raw_audio_path):
+        audio_path_without_ext = os.path.splitext(raw_audio_path)[0]
+        cmd = [
+            'ffmpeg',
+            '-i', str(raw_audio_path),
+            '-f', str(new_file_ext),
+            '-ar', str(sr),
+            '-ac', str(channel),
+            '-y', str(audio_path_without_ext + new_file_ext)
+
+        ]
+        p1 = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = p1.communicate()
+        stdout_str, stderr_str = stdout.decode('utf-8'), stderr.decode('utf-8')
+
+        if p1.returncode != 0:
+            print('audio convert error: ', raw_audio_path)
+            print('std out:\r\n%s' % stdout_str)
+            print('std error:\r\n%s' % stderr_str)
+            return -1
+        return 0
+
+    total = 0
+    failed_list = []
+    for root, dirs, files in os.walk(root_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            file_ext = os.path.splitext(file_path)[-1]
+
+            if file_ext in raw_file_ext_tuples:
+                is_success = audio_convert(file_path)
+                if is_success == 0:
+                    if remove_raw_file:
+                        os.remove(file_path)
+                else:
+                    failed_list.append(file_path)
+                total += 1
+
+    return total, failed_list

@@ -5,12 +5,13 @@ from datasets.basic_dataset import BasicDataset
 
 
 class ST_CMDS_20170001_1(BasicDataset):
+    ext_tuples = ('.wav', '.ogg')
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
         speaker_dict = dict()
         for file in os.listdir(root_directory):
             path = os.path.join(root_directory, file)
-            if path.endswith('.ogg') and self.is_valid_audio(path):
+            if self.is_in_exts(path, self.ext_tuples) and self.is_valid_audio(path):
                 speaker_id = file[8:14]
                 speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | {path}
 
