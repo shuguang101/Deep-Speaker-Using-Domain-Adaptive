@@ -5,7 +5,7 @@ from datasets.basic_dataset import BasicDataset
 
 
 class ST_CMDS_20170001_1(BasicDataset):
-    ext_tuples = ('.wav', '.ogg')
+    ext_tuples = ('.wav', '.ogg', '.flac', '.m4a')
     sid_pre = 'st_cmds_20170001_1_'  # 保证id全局唯一, 添加前缀
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):

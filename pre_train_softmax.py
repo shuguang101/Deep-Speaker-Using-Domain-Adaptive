@@ -32,8 +32,6 @@ def do_net_eval(**kwargs):
     summary_writer = kwargs['summary_writer']
 
     train_dataset = kwargs['train_dataset']
-    test_dataset = kwargs['test_dataset']
-    test_dataloader = kwargs['test_dataloader']
 
     # 清空缓存
     torch.cuda.empty_cache()
@@ -43,26 +41,19 @@ def do_net_eval(**kwargs):
     avg_loss_meter = meter.AverageValueMeter()
     avg_acc_meter = meter.AverageValueMeter()
     with torch.no_grad():
-        for i, (a, p, n, p_nid, p_did, n_nid, n_did) in enumerate(test_dataloader):
-            # 测试集是训练集的子集, 会导致nid不一致
-            raw_p_nid_list = p_nid.cpu().numpy().tolist()
-            new_p_nid_list = []
-            for raw_p_nid in raw_p_nid_list:
-                raw_p_sid = test_dataset.nid2sid_dict[raw_p_nid]
-                new_p_nid = train_dataset.sid2nid_dict[raw_p_sid]
-                new_p_nid_list.append(new_p_nid)
-
+        eval_data = train_dataset.gen_speaker_identification_eval_used_data(8)
+        for i, (data, nid) in enumerate(eval_data):
             # 获取测试数据及标签
-            positive = p.to(device)
-            positive_label = torch.tensor(np.array(new_p_nid_list), dtype=torch.long).to(device)
-            positive_out = speaker_net(positive)
+            data = data.to(device)
+            data_label = nid.to(device)
+            data_out = speaker_net(data)
 
             # loss
-            loss = ce_loss(positive_out, positive_label)
+            loss = ce_loss(data_out, data_label)
             # acc
-            _, predict_label = torch.max(positive_out, 1)
-            correct_count = (predict_label == positive_label).sum()
-            acc = correct_count.float() / positive_out.size(0)
+            _, predict_label = torch.max(data_out, 1)
+            correct_count = (predict_label == data_label).sum()
+            acc = correct_count.float() / data_out.size(0)
             # avg meter
             avg_loss_meter.add(loss.item())
             avg_acc_meter.add(acc.item())
@@ -73,7 +64,7 @@ def do_net_eval(**kwargs):
         summary_writer.add_scalar('eval/acc', avg_acc_meter.value()[0], global_step)
 
         # 用于在tensor board中显示聚类效果
-        em_mat, em_imgs, em_id = test_dataset.get_batch_speaker_data_with_icon(10, 50)
+        em_mat, em_imgs, em_id = train_dataset.get_batch_speaker_data_with_icon(10, 50)
         em_mat_out = speaker_net(em_mat.to(device)).cpu()
         summary_writer.add_embedding(em_mat_out, metadata=em_id, label_img=em_imgs, global_step=global_step)
     # 测试完成切换回train模式
@@ -95,23 +86,19 @@ def train(**kwargs):
     # 测试数据集参数
     dataset_train_param = {**params_dict, **{'dataset_type_name': 'train'}}
     dataset_test_param = {**params_dict, **{'dataset_type_name': 'test'}}
-
     # 读取训练数据
     # train_dataset, train_dataloader = common_util.load_data(opt, **dataset_train_param)
-
     # 读取测试数据
-    test_dataset = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
-    test_dataloader = DataLoader(test_dataset,
-                                 shuffle=opt.shuffle,
-                                 batch_size=opt.batch_size,
-                                 num_workers=opt.num_workers,
-                                 pin_memory=opt.pin_memory,
-                                 timeout=opt.dataloader_timeout)
-
-    train_dataset, train_dataloader = copy.deepcopy(test_dataset), copy.deepcopy(test_dataloader)
+    train_dataset = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
+    train_dataloader = DataLoader(train_dataset,
+                                  shuffle=opt.shuffle,
+                                  batch_size=opt.batch_size,
+                                  num_workers=opt.num_workers,
+                                  pin_memory=opt.pin_memory,
+                                  timeout=opt.dataloader_timeout)
 
     # tensor board summary writer
-    summary_writer = SummaryWriter(log_dir=os.path.join(fdir, 'summary_log_dir/pre_train/'))
+    summary_writer = SummaryWriter(log_dir=os.path.join(fdir, 'net_data/summary_log_dir/pre_train/'))
 
     lr = opt.lr
     epoch, global_step = 1, 1
@@ -194,9 +181,11 @@ def train(**kwargs):
                 print(line_info)
 
             # 定期保存
-            if global_step in [int(x * total_batch) for x in opt.save_points_list]:
+            if (global_step - 1) % total_batch + 1 in [int(x * total_batch) for x in opt.save_points_list]:
                 date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
-                save_path = os.path.join(fdir, 'net_data/checkpoints/', '%s_%s_%s.pth' % (epoch, global_step, date_str))
+                save_path = os.path.join(fdir,
+                                         'net_data/checkpoints/pre_train/',
+                                         '%s_%s_%s.pth' % (epoch, global_step, date_str))
                 states_dict = {
                     'net': speaker_net.state_dict(),
                     'optimizer': optimizer.state_dict(),
@@ -209,13 +198,12 @@ def train(**kwargs):
                 eval_params = {
                     'speaker_net': speaker_net, 'device': device, 'global_step': global_step,
                     'ce_loss': ce_loss, 'summary_writer': summary_writer, 'train_dataset': train_dataset,
-                    'test_dataset': test_dataset, 'test_dataloader': test_dataloader
                 }
                 do_net_eval(**eval_params)
 
             # 保存last_checkpoint.pth以防意外情况导致训练进度丢失
             if (global_step - 1) % opt.last_checkpoint_save_interval == 0:
-                save_path = os.path.join(fdir, 'net_data/checkpoints/', 'last_checkpoint.pth')
+                save_path = os.path.join(fdir, 'net_data/checkpoints/pre_train/', 'last_checkpoint.pth')
                 states_dict = {
                     'net': speaker_net.state_dict(),
                     'optimizer': optimizer.state_dict(),

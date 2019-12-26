@@ -71,7 +71,13 @@ class BasicDataset(Dataset):
         # speaker_id -> audio_path set
         speaker_dict = self.__get_speaker_dict__(root_directory, dataset_type_name)
         # 由于使用triplet_loss单个说话人的录音个数需要大于2
-        speaker_dict = {k: v for k, v in speaker_dict.items() if len(v) >= 2}
+        speaker_dict = {k: v for k, v in speaker_dict.items() if len(v) >= 5}
+
+        # 分离一部分数据用做speaker identification验证数据
+        self.eval_used_dict = dict()
+        for key in speaker_dict.keys():
+            self.eval_used_dict[key] = [speaker_dict[key].pop(), speaker_dict[key].pop()]
+
         self.speaker_dict = copy.deepcopy(speaker_dict)  # 录音文件字典 speaker_id -> audio_path
 
         # 说话人数量
@@ -292,3 +298,26 @@ class BasicDataset(Dataset):
         return torch.tensor(speaker_data_list, dtype=torch.float32), \
                torch.tensor(speaker_icon_list, dtype=torch.float32), \
                speaker_id_list
+
+    def gen_speaker_identification_eval_used_data(self, batch_size):
+        # 使用eval_used_dict中的数据进行eval
+        data_list, nid_list = [], []
+        for sid in self.eval_used_dict.keys():
+            nid = self.sid2nid_dict[sid]
+            paths = self.eval_used_dict[sid]
+            for path in paths:
+                y = audio_util.load_audio_as_mono(path, self.other_params.get('sr', 44100))
+                f = self.get_features(y)
+                data_list.append(f)
+                nid_list.append(nid)
+            # 生成batch数据
+            if len(data_list) >= batch_size:
+                data_np, nid_np = np.array(data_list[:batch_size]), np.array(nid_list[:batch_size])
+                yield torch.tensor(data_np, dtype=torch.float32), torch.tensor(nid_np)
+
+                data_list = data_list[batch_size:]
+                nid_list = nid_list[batch_size:]
+
+        if len(data_list) > 0:
+            data_np, nid_np = np.array(data_list), np.array(nid_list)
+            yield torch.tensor(data_np, dtype=torch.float32), torch.tensor(nid_np)

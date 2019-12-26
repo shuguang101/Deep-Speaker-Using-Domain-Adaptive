@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*-
 
 import time
+import torch
 from utils import audio_util
 
 from torch.utils.data import DataLoader
@@ -16,6 +17,7 @@ if __name__ == '__main__':
     root_directory = '/data/open_source_dataset/test'
     dataset_type_name = 'test'
     vox1 = VoxCeleb1(root_directory, dataset_type_name, sr=16000, n_mels=512)
+    device = torch.device('cpu')
 
     dl = DataLoader(vox1, batch_size=8)
 
@@ -32,6 +34,10 @@ if __name__ == '__main__':
     # for ii, speakers in enumerate(aa):
     #     print(ii, speakers.shape)
 
-    net = SpeakerNetFC(3, 0.8)
+    eval_data = vox1.gen_speaker_identification_eval_used_data(8)
+    for ii, (data, nid) in enumerate(eval_data):
+        print(ii, data.shape, nid.shape, nid)
+
+    net = SpeakerNetFC(3, device, 0.8)
     out = net(speakers_012[0])
     print(out.shape)

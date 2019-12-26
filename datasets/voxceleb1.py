@@ -5,7 +5,7 @@ from datasets.basic_dataset import BasicDataset
 
 
 class VoxCeleb1(BasicDataset):
-    ext_tuples = ('.wav', '.ogg')
+    ext_tuples = ('.wav', '.ogg', '.flac', '.m4a')
     sid_pre = 'vox1_'  # 保证id全局唯一, 添加前缀
 
     # speaker id of test and dev have no overlap

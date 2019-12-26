@@ -33,7 +33,7 @@ class DefaultConfig(object):
     # mel滤波器数量
     n_mels = 128
     # 大量实验表明,在语音特征中加入表征语音动态特征的查分参数(即:使用1阶2阶差分), 能够提高系统的识别性能
-    used_delta_orders = (1, 2)
+    used_delta_orders = (2,)
 
     # 图标大小(tensor board 中使用)
     icon_size = 15
@@ -55,7 +55,7 @@ class DefaultConfig(object):
     lr = 1e-3
     weight_decay = 5e-4
     momentum = 0.9
-    dropout_keep_prop = 0.75
+    dropout_keep_prop = 0.8
 
     pre_train_status_dict_path = None
     # 覆盖网络参数

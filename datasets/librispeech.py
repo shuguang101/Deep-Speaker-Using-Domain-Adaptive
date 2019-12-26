@@ -6,7 +6,7 @@ from datasets.basic_dataset import BasicDataset
 
 class LibriSpeech(BasicDataset):
     sid_pre = 'librispeech_'  # 保证id全局唯一, 添加前缀
-    ext_tuples = ('.wav', '.ogg')
+    ext_tuples = ('.wav', '.ogg', '.flac', '.m4a')
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
 
