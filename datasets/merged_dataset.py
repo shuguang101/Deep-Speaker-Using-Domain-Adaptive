@@ -14,8 +14,7 @@ class MergedDataset(BasicDataset):
             speaker_dict_keys = list(sorted(speaker_dict.keys()))
             for speaker_id in speaker_dict_keys:
                 path_set = speaker_dict[speaker_id]
-                new_speaker_id = '#%d_%s' % (i, speaker_id)
-                speaker_dict_all[new_speaker_id] = speaker_dict_all.get(new_speaker_id, set()) | path_set
+                speaker_dict_all[speaker_id] = speaker_dict_all.get(speaker_id, set()) | path_set
                 # 原始说话人id -> 域id
-                self.sid2did_dict[new_speaker_id] = i
+                self.sid2did_dict[speaker_id] = i
         return speaker_dict_all

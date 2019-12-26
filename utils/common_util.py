@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader
 
 
 def get_all_attribute(obj):
+    # 获取对象的熟悉
     all_attrs = dir(obj)
     filtered_attrs = []
 
@@ -25,7 +26,7 @@ def get_all_attribute(obj):
 
 
 def load_data(opt, **kwargs):
-    # 读取测试数据
+    # 读取数据
     st_cmds_20170001_1 = ST_CMDS_20170001_1(opt.st_cmds_20170001_1, **kwargs)
     librispeech = LibriSpeech(opt.libriSpeech, **kwargs)
     voxceleb1 = VoxCeleb1(opt.voxceleb1, **kwargs)
@@ -35,6 +36,11 @@ def load_data(opt, **kwargs):
                                                           voxceleb1,
                                                           voxceleb2),
                                 **kwargs)
-    merged_data_loader = DataLoader(merged_data, **kwargs)
+    merged_data_loader = DataLoader(merged_data,
+                                    shuffle=opt.shuffle,
+                                    batch_size=opt.batch_size,
+                                    num_workers=opt.num_workers,
+                                    pin_memory=opt.pin_memory,
+                                    timeout=opt.dataloader_timeout)
 
     return merged_data, merged_data_loader

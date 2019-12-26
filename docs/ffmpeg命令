@@ -1,0 +1,28 @@
+ffmpeg -i ~/data/广电-视频样本/20180517_190844江苏卫视_b.mp4  -ss 00:21:22 -t 00:01:00  -c:v h264 -c:aac3 ./aaa.mp4 -y
+ffmpeg -i ~/data/广电-视频样本/20180517_190844江苏卫视_b.mp4  -vf showinfo -frames:v 24 -f null -
+
+ffmpeg -i ~/data/广电-视频样本/20180517_190844江苏卫视_b.mp4  -filter_complex '[0]trim=start_frame=16455:end_frame=16500[ss];[ss]showinfo[s0]' -y -f null -
+
+
+ffmpeg -i ~/data/广电-视频样本/20180517_190844江苏卫视_b.mp4  -filter_complex '[0]trim=start_frame=16455:end_frame=16500[s0]' -r 15  -c:v h264 -c:a ac3 -map [s0] -metadata title='sss' ./aaa.mp4 -y
+
+
+
+
+ffmpeg -i ~/data/广电-视频样本/20180517_190844江苏卫视_b.mp4  -filter_complex '[0]trim=start_frame=16455:end_frame=16500[ss];[ss]showinfo[s1]' -map [s1] -y -f null -
+   
+
+
+ffmpeg -i ~/data/广电-视频样本/20180517_190844江苏卫视_b.mp4  -filter_complex '[0]trim=start=60[s0];[s0]trim=end=120[s1]' -r 15  -c:v h264 -c:a ac3 -map [s1] -metadata title='sss' ./aaa.mp4 -y
+
+
+
+ffmpeg -i 2018-05-17/gg_extracted_4_20180517_190844江苏卫视_b.mp4 -filter_complex '[0]trim=start_frame=2020:end_frame=2023[ss];[ss]showinfo[s1]' -map [s1] -y -f image2 image-%05d.jpeg
+
+
+ffmpeg -i gg_extracted_4_20180517_190844½­ËÕÎÀÊÓ_b.mp4 -b:a 128k -c:a pcm_s16le -ar 48000  a.wav
+
+ffmpeg -i gg_extracted_4_20180517_190844½­ËÕÎÀÊÓ_b.mp4 -c:a pcm_s16le -ar 48000  a.wav
+
+ffmpeg -i ~/data/广电-视频样本/20180517_190844江苏卫视_b.mp4  -filter_complex '[0]trim=start=60[s0];[s0]trim=end=120[s1]' -r 15  -c:v h264 -c:a ac3 -tag:v hvc1 -map [s1] -metadata title='sss' ./aaa.mp4 -y
+

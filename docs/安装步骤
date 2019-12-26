@@ -1,0 +1,441 @@
+更换apt源：
+	sudo cp /etc/apt/source.list /etc/apt/source.list.bak
+	sudo gedit /etc/apt/source.list
+	sudo apt update
+
+	# 默认注释了源码镜像以提高 apt update 速度，如有需要可自行取消注释
+	deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial main restricted universe multiverse
+	# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial main restricted universe multiverse
+	deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-updates main restricted universe multiverse
+	# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-updates main restricted universe multiverse
+	deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-backports main restricted universe multiverse
+	# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-backports main restricted universe multiverse
+	deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-security main restricted universe multiverse
+	# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-security main restricted universe multiverse
+
+	# 预发布软件源，不建议启用
+	# deb https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-proposed main restricted universe multiverse
+	# deb-src https://mirrors.tuna.tsinghua.edu.cn/ubuntu/ xenial-proposed main restricted universe multiverse
+
+更换目录为英文
+	export LANG=en_US
+        xdg-user-dirs-gtk-update
+	export LANG=zh_CN
+	reboot
+
+更换pip源
+	sudo apt install python3-pip
+	sudo apt install -f
+	sudo mkdir ~/.pip/
+	sudo vim ~/.pip/pip.conf
+	
+	[global]
+	index-url = https://pypi.tuna.tsinghua.edu.cn/simple
+
+安装显卡驱动
+	选择专有
+
+安装cuda
+	sudo chmod a+x cuda_9.0.176_384.81_linux.run
+	sudo ./cuda_9.0.176_384.81_linux.run
+	sudo gedit /etc/profile
+
+	#add for cuda
+	export CUDA_HOME=/usr/local/cuda-9.0
+	export PATH=$CUDA_HOME/bin:$PATH
+	export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+
+安装cudnn
+	sudo tar -xzvf cudnn-9.0-linux-x64-v7.1.tgz
+	sudo cp cuda/include/cudnn.h /usr/local/cuda/include
+	sudo cp cuda/lib64/libcudnn* /usr/local/cuda/lib64
+	sudo chmod a+r /usr/local/cuda/include/cudnn.h /usr/local/cuda/lib64/libcudnn*
+
+	sudo vim /etc/ld.so.conf.d/cuda.conf
+	/usr/local/cuda-9.0/lib64/
+	sudo ldconfig
+
+安装jdk
+	sudo mkdir /opt/neusoft
+	sudo cp ~/Downloads/jdk-8u152-linux-x64.tar.gz /opt/neusoft/
+	cd /opt/neusoft/
+	sudo tar -xzvf jdk-8u152-linux-x64.tar.gz
+	sudo vim /etc/profile
+	
+	export JAVA_HOME=/opt/neusoft/jdk1.8.0_152
+	export CLASSPATH=.:$JAVA_HOME/lib:$JAVA_HOME/jre/lib:$CLASSPATH
+	export PATH=$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$PATH
+
+安装ant
+	sudo cp ~/Downloads/apache-ant-1.10.3-bin.tar.gz /opt/neusoft/
+	sudo tar -xzvf apache-ant-1.10.3-bin.tar.gz
+	sudo vim /etc/profile
+	
+	export ANT_HOME=/opt/neusoft/apache-ant-1.10.3
+	export PATH=$ANT_HOME/bin:$PATH
+	
+安装bazel
+	sudo mkdir /opt/neusoft/bazel-0.13.0
+	sudo ./bazel-0.13.0-installer-linux-x86_64.sh --prefix=/opt/neusoft/bazel-0.13.0
+	sudo vim /etc/profile
+
+	export BAZEL_HOME=/opt/neusoft/bazel-0.13.0
+	export PATH=$PATH:$BAZEL_HOME/bin
+
+安装mpich
+	sudo mkdir /opt/neusoft/mpich-3.2.1
+	tar -xzvf mpich-3.2.1.tar.gz
+	cd mpich-3.2.1/
+	./configure --prefix=/opt/neusoft/mpich-3.2.1
+	make -j4
+	sudo make install
+	sudo vim /etc/profile
+
+	export MPICH_HOME=/opt/neusoft/mpich-3.2.1
+	export PATH=$MPICH_HOME/bin:$PATH
+	export LD_LIBRARY_PATH=$MPICH_HOME/lib:$LD_LIBRARY_PATH
+	export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$MPICH_HOME/lib/pkgconfig
+
+安装openmpi
+	./configure --with-cuda --prefix=/opt/neusoft/mpich-3.2.1
+
+安装tensorRT
+	sudo cp TensorRT-3.0.4.Ubuntu-16.04.3.x86_64.cuda-9.0.cudnn7.0.tar.gz /opt/neusoft/
+	cd /opt/neusoft/
+	sudo tar -xzvf TensorRT-3.0.4.Ubuntu-16.04.3.x86_64.cuda-9.0.cudnn7.0.tar.gz
+	sudo rm -f TensorRT-3.0.4.Ubuntu-16.04.3.x86_64.cuda-9.0.cudnn7.0.tar.gz
+	sudo vim /etc/profile
+
+	export TENSORRT_HOME=/opt/neusoft/TensorRT-3.0.4
+	export PATH=$TENSORRT_HOME/bin:$PATH
+	export LD_LIBRARY_PATH=$TENSORRT_HOME/lib:$LD_LIBRARY_PATH
+
+安装ComputeCpp
+	sudo cp ~/Downloads/ComputeCpp-CE-0.8.0-Ubuntu.16.04-64bit.tar.gz  /opt/neusoft/
+	cd /opt/neusoft/
+	sudo tar -xzvf ComputeCpp-CE-0.8.0-Ubuntu.16.04-64bit.tar.gz
+	sudo vim /etc/profile
+
+	export COMPUTECPP_HOME=/opt/neusoft/ComputeCpp-CE-0.8.0-Ubuntu-16.04-x86_64
+	export PATH=$COMPUTECPP_HOME/bin:$PATH
+	export LD_LIBRARY_PATH=$COMPUTECPP_HOME/lib:$LD_LIBRARY_PATH
+
+编译tensorflow
+	git clone --recurse-submodules -b r1.8 https://github.com/tensorflow/tensorflow.git
+
+
+	./configure
+	/usr/bin/python3
+	Y jemalloc        # jemalloc干了malloc干的活，而且干得好一些，主要体现在避免内存碎片与并发扩展上
+        n Google Cloud Platform support
+        n Hadoop File System support
+        n Amazon S3 File System support
+        n Apache Kafka Platform support
+	Y XLA          #（Accelerated Linear Algebra/加速线性代数）
+	Y GDR support
+	Y VERBS support
+	Y OpenCL SYCL support   # 通过 SYCL 在 GPU 上加速 C+ +
+	Y OpenCL SYCL support
+        Y ComputeCPP    # ComputeCpp™，一种SYCL™开放式标准的实现
+	/opt/neusoft/ComputeCpp-CE-0.8.0-Ubuntu-16.04-x86_64
+	Y CUDA support
+	/usr/local/cuda-9.0
+	7.0
+	Y TensorRT support
+	/opt/neusoft/TensorRT-3.0.4
+	Y MPI support
+
+	#无法访问'tensorflow/core/platform/google/build_config/logging.h': 没有那个文件或目录
+	bazel clean --expunge
+	bazel build -c opt --copt=-msse3 --copt=-msse4.1 --copt=-msse4.2 --copt=-mavx --copt=-mavx2 --copt=-mfma //tensorflow/tools/pip_package:build_pip_package 
+	bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg
+	mkdir whl-file
+	cp /tmp/tensorflow_pkg/tensorflow-1.8.0-cp35-cp35m-linux_x86_64.whl whl-file/
+	sudo pip3 install whl-file/tensorflow-1.8.0-cp35-cp35m-linux_x86_64.whl
+
+
+--------------------------------------------------------------------
+Preconfigured Bazel build configs. You can use any of the below by adding "--config=<>" to your build command. See tools/bazel.rc for more details.
+	--config=mkl         	# Build with MKL support.
+	--config=monolithic  	# Config for mostly static monolithic build.
+
+flags		: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch epb intel_pt tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 hle avx2 smep bmi2 erms invpcid rtm mpx rdseed adx smap clflushopt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp
+-------------------------------------------------------------------------------
+
+
+安装opencv
+	unzip opencv-3.4.1.zip
+	cd opencv-3.4.1/
+	mkdir build
+	cd /.cache/ippicv
+	cp ~/Downloads/ippicv_2017u3_lnx_intel64_general_20170822.tgz ./4e0352ce96473837b1d671ce87f17359-ippicv_2017u3_lnx_intel64_general_20170822.tgz
+	setsid cmake-gui &
+	sudo mkdir /opt/neusoft/opencv-3.4.1
+	cd build
+	make j4
+	sudo make install
+	sudo ln -s /opt/neusoft/opencv-3.4.1/lib/python3.5/dist-packages/cv2.cpython-35m-x86_64-linux-gnu.so /usr/local/lib/python3.5/dist-packages/cv2.cpython-35m-x86_64-linux-gnu.so
+	sudo vim /etc/profile
+
+	export OPENCV_HOME=/opt/neusoft/opencv-3.4.1
+	export PATH=$OPENCV_HOME/bin:$PATH
+	export LD_LIBRARY_PATH=$OPENCV_HOME/lib:$LD_LIBRARY_PATH
+	export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$OPENCV_HOME/lib/pkgconfig
+
+  安装opencv_contrib-3.4.1
+     OPENCV_EXTRA_MODULES_PATH=/home/neu/Downloads/opencv_contrib-3.4.1/modules
+     修改opencv_contrib-3.4.1/modules/face/CMakeLists.txt 文件第19行
+       file:///home/neu/Downloads/opencv-3.4.1/build/downloads/
+  
+Run make clean before cmake and make, should solve the problem
+
+安装dlib
+	tar -xvf dlib-19.13.tar.bz2
+	cd dlib-19.13/
+	sudo python3 setup.py install --yes USE_SSE4_INSTRUCTIONS --yes USE_SSE2_INSTRUCTIONS --yes USE_AVX_INSTRUCTIONS --yes DLIB_USE_LAPACK --yes DLIB_USE_CUDA --yes DLIB_USE_BLAS --yes DLIB_PNG_SUPPORT --yes DLIB_JPEG_SUPPORT --yes CUDA_USE_STATIC_CUDA_RUNTIME
+
+apt install
+	sudo apt install aptitude
+	sudo apt install vim
+	sudo apt install python3-pip
+	sudo apt install python-pip
+	sudo apt install python3-dev python3-wheel
+	sudo apt install gfortran
+	sudo apt install libcupti-dev
+	sudo apt install libcufft7.5
+	sudo apt install mklibs
+	sudo apt install cmake-qt-gui
+	sudo apt install ccache
+	sudo apt install zlib1g zlib1g-dev
+	sudo apt install libjpeg-dev
+	sudo apt install libtiff5 libtiff5-dev
+	sudo apt install libjasper-dev
+	sudo apt install libpng12-dev
+
+	#sudo apt install libgtk-3-dev
+	#sudo apt remove libgtk-3-dev
+
+
+	sudo apt install libglib2.0-dev
+	sudo apt install libgstreamer1.0-dev
+
+	sudo apt install gstreamer1.0-alsa gstreamer1.0-packagekit gstreamer1.0-plugins-good-doc gstreamer1.0-clutter gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-clutter-3.0 gstreamer1.0-plugins-bad-dbg gstreamer1.0-plugins-ugly-amr gstreamer1.0-crystalhd gstreamer1.0-plugins-bad-doc gstreamer1.0-plugins-ugly-dbg gstreamer1.0-doc gstreamer1.0-plugins-bad-faad gstreamer1.0-plugins-ugly-doc gstreamer1.0-dvswitch gstreamer1.0-plugins-bad-videoparsers gstreamer1.0-pocketsphinx gstreamer1.0-espeak gstreamer1.0-plugins-base gstreamer1.0-pulseaudio gstreamer1.0-fluendo-mp3 gstreamer1.0-plugins-base-apps gstreamer1.0-tools gstreamer1.0-plugins-base-dbg gstreamer1.0-vaapi gstreamer1.0-libav gstreamer1.0-plugins-base-doc gstreamer1.0-vaapi-doc gstreamer1.0-libav-dbg gstreamer1.0-plugins-good gstreamer1.0-x gstreamer1.0-nice gstreamer1.0-plugins-good-dbg
+
+	sudo apt-get install openssl 
+	sudo apt-get install libssl-dev 
+	sudo apt install libgstreamer-plugins-base1.0-dev 
+	sudo apt install libdc1394-22 libdc1394-22-dev
+	sudo apt install libavcodec-dev libavformat-dev libavutil-dev libswscale-dev libavresample-dev
+	sudo apt install libgphoto2-dev
+	sudo apt install libwebp5 libwebp-dev
+
+	#sudo apt install libopenblas-base libopenblas-dev
+	#sudo apt remove libopenblas-base libopenblas-dev
+
+	sudo apt install libatlas-dev
+	sudo apt install libatlas-base-dev
+	sudo apt install libblas-dev
+	sudo apt install liblapack-dev
+	sudo apt install liblapacke-dev
+
+	#sudo apt install libvtk5-dev libvtk5.10
+	#sudo apt install libvtk5-qt4-dev libvtk5.10-qt4
+	#sudo apt install libvtk-java libvtkgdcm-tools libvtkgdcm-cil libvtkgdcm-java
+	#sudo apt remove libvtk5-dev libvtk5.10 libvtk5-qt4-dev libvtk5.10-qt4 libvtk-java libvtkgdcm-tools libvtkgdcm-cil libvtkgdcm-java
+
+	sudo apt install libeigen3-dev
+	sudo apt install libv4l-dev
+	sudo apt install ffmpeg
+	sudo apt install libopenexr22 libopenexr-dev
+	sudo apt install libgtkglext1-dev libgtkglext1-dbg libgtkglext1 libgtkglextmm-x11-1.2-dev
+	sudo apt install libgtkgl2.0-dev libgtkgl2.0-1
+	sudo apt install libgtkglada2.24.4-dev libgtkglada2.24.4 libgtkglada-dbg
+
+	sudo apt-get install build-essential libgl1-mesa-dev
+	sudo apt-get install freeglut3-dev --fix-missing
+	sudo apt-get install libglew-dev libsdl2-dev libsdl2-image-dev libglm-dev libfreetype6-dev
+
+	sudo apt install git
+	sudo apt install rdmacm-utils librdmacm-dev
+	sudo apt install mysql-server-5.7 #neusoft
+	sudo apt install openssh-server
+	sudo apt install openssh-client
+	sudo apt install nload
+	sudo apt install mongodb
+        sudo apt install sysstat
+	sudo apt install libfdk-aac-dev
+        sudo apt install libssl-dev
+	sudo apt install portaudio19-dev
+	sudo apt install python3-tk
+	sudo snap install pycharm-professional --classic
+	//硬件温度检测
+	sudo apt-get install lm-sensors hddtemp
+	sudo apt-get install psensor
+
+
+
+	
+
+
+pip install
+	pip3 install numpy-1.14.3-cp35-cp35m-manylinux1_x86_64.whl
+	pip install ~/Downloads/numpy-1.14.3-cp27-cp27mu-manylinux1_x86_64.whl
+	pip3 install ../setuptools-39.1.0-py2.py3-none-any.whl
+	pip3 install h5py
+	pip3 install pymongo pymysql
+	pip3 install libtiff
+	pip3 install ffmpeg-python
+	pip3 install moviepy
+
+	pip3 install pyaudio
+		sudo apt install portaudio19-dev
+
+	pip3 install wave
+	pip3 install pygame
+
+	pip3 install --upgrade pip
+		from pip import main  ==>  from pip import __main__
+		sys.exit(main())  ==>  sys.exit(__main__._main())
+	
+	pip3 install matplotlib
+	pip3 install schedule
+	pip3 install jupyter 
+	pip3 install tensorflow
+	sudo pip3 install webrtcvad
+	sudo pip3 install scikit-image
+	sudo pip3 install fastdtw
+	sudo pip3 install dtw
+
+	sudo pip3 install scikits.samplerate
+	sudo apt install libsamplerate0
+	sudo pip3 install librosa
+	sudo pip3 install torchnet
+	sudo pip3 install fire
+	sudo pip3 install pysoundfile  # this is much faster than librosa.load()
+	sudo pip3 install joblib  # cache
+
+
+install ftp 
+    sudo apt install vsftpd
+    sudo mkdir /home/ftp
+    sudo useradd -d /home/ftp -s /bin/bash ftp
+    sudo passwd ftp
+
+install pykaldi
+sudo apt-get install libz3-*
+sudo apt-get install ninja
+
+	git clone https://github.com/pykaldi/pykaldi.git
+	cd pykaldi
+
+	sudo apt-get install autoconf automake cmake curl g++ git graphviz \
+	    libatlas3-base libtool make pkg-config subversion unzip wget zlib1g-dev
+
+	pip3 install --upgrade pip
+	pip3 install --upgrade setuptools
+	pip3 install numpy pyparsing
+	pip3 install ninja  # not required but strongly recommended
+
+	cd tools
+	./check_dependencies.sh  # checks if system dependencies are installed
+	./install_protobuf.sh python3    # installs both the C++ library and the Python package
+	./install_clif.sh  python3       # installs both the C++ library and the Python package
+	./install_kaldi.sh       # installs the C++ library
+	cd ..
+
+	
+	python3 setup.py install
+
+
+	pyAudioAnalysis
+	sudo pip3 install numpy matplotlib scipy sklearn hmmlearn simplejson eyed3 pydub
+	git clone https://github.com/tyiannak/pyAudioAnalysis.git
+	pip3 install -e .
+
+安装vlc
+sudo apt install vlc
+
+开发环境安装
+	sudo snap install pycharm-professional --classic
+
+远程桌面配置
+	sudo apt-get install  vnc4server
+	使用在/usr/share/applications目录下打开“桌面共享”选项
+	neu171
+	sudo apt-get install dconf-editor
+
+	用Dconf-editor调整，并访问如下配置路径：
+		org > gnome > desktop > remote-access
+		取消钩选 “requlre-encryption”属性。
+
+	xrdp方式
+	sudo apt install xrdp
+	sudo apt install vnc4server tightvncserver
+	#sudo apt install xubuntu-desktop
+	sudo apt install unity
+	sudo apt install xfce4
+
+	sudo sed -i.bak '/fi/a #xrdp multi-users \n unity \n' /etc/xrdp/startwm.sh
+	echo "xfce4-session" > ~/.xsession  # /etc/startwm.sh echo unity>~/.xsession
+
+	sudo service xrdp restart
+
+
+
+nvidia-smi
+
+fonts
+sudo mkdir /usr/share/fonts/win_fonts
+sudo mv ~/Desktop/simsun.ttc  /usr/share/fonts/win_fonts/
+sudo mkfontscale
+sudo mkfontdir
+sudo fc-cache -fv
+
+route
+sudo route add -net 10.4.120.1 netmask 255.255.248.0 eno1
+sudo route add -net 10.4.32.0/21 eno1
+sudo route add default gw 192.168.31.1
+
+vim /etc/network/interfaces
+  up route add -net 10.4.32.0/21 eno1
+  up route add default gw 192.168.31.1
+
+sudo vim /etc/rc.local
+  route add -net 10.4.120.1 netmask 255.255.248.0 eno1
+  route add -net 10.4.32.0/21 eno1
+  route add default gw 192.168.31.1
+
+ubuntu桌面卡死
+ 1.
+    ps -t tty7
+    kill 23245
+ 2.
+    #使用命令重启X服务(Unity):
+    sudo restart lightdm
+    sudo service lightdm restart
+    #使用命令重启X服务(Gnome):
+    sudo restart gdm
+    sudo service gdm restart
+    #所有版本通用:
+    sudo pkill X
+
+sudo sync
+echo 3 > /proc/sys/vm/drop_caches
+
+查看.so 文件函数名
+nm -D xxx.so
+objdump -tT xxx.so
+
+
+sudo add-apt-repository ppa:graphics-drivers/ppa
+sudo apt-get update
+
+Installation Instructions:
+`sudo dpkg -i cuda-repo-ubuntu1604_10.1.105-1_amd64.deb`
+`sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub`
+`sudo apt-get update`
+`sudo apt-get install cuda
+
+
+
+

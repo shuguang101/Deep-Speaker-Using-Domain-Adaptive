@@ -47,6 +47,7 @@ class BasicDataset(Dataset):
             hop_length: 275,
             window: blackman,
             n_mels:256,
+            used_delta_orders: (1,),
         """
 
         # 数据集根目录
@@ -181,6 +182,8 @@ class BasicDataset(Dataset):
         hop_length = self.other_params.get('hop_length', 275)  # 1/4 of window size
         window = self.other_params.get('window', 'blackman')
         n_mels = self.other_params.get('n_mels', 256)
+        # 是否使用动态特征, None或空元组则不使用动态特征, 如下代码默认使用1阶动态特征
+        used_delta_orders = self.other_params.get('used_delta_orders', (1,))
 
         # 进行数据增强
         if do_augmentation:
@@ -201,7 +204,16 @@ class BasicDataset(Dataset):
                                   n_mels=n_mels
                                   )
 
-        # features shape: time_dim X feature_dim
+        # features dim 标准化
+        f_bank = (f_bank - np.mean(f_bank, axis=1, keepdims=True)) / (np.std(f_bank, axis=1, keepdims=True) + 2e-12)
+
+        # 添加动态特征
+        if used_delta_orders is not None \
+                and isinstance(used_delta_orders, tuple) \
+                and len(used_delta_orders) > 0:
+            f_bank = audio_util.add_deltas_librosa(f_bank, orders=used_delta_orders)
+
+        # features shape: [time_dim, feature_dim]
         return f_bank
 
     def __getitem__(self, p_index):

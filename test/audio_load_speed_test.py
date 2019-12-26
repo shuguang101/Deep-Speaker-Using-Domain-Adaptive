@@ -2,6 +2,8 @@
 
 import time
 import numpy as np
+import sys
+
 from utils import audio_util
 
 if __name__ == '__main__':
@@ -28,3 +30,6 @@ if __name__ == '__main__':
 
     y_augmentation = audio_util.do_audio_augmentation(y, sr)
     print('y_augmentation', y_augmentation.shape, y_augmentation[:3])
+
+    fbank_deltas_added = audio_util.add_deltas_librosa(fbank, orders=(1, 2))
+    print('fbank_deltas_added', fbank_deltas_added.shape)

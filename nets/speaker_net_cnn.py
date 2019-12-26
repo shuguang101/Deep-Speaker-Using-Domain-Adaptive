@@ -86,11 +86,12 @@ class ConvBlock(nn.Module):
 
 class SpeakerNetFC(nn.Module):
 
-    def __init__(self, num_speaker, keep_prop=0.8):
+    def __init__(self, num_speaker, device, keep_prop=0.8):
         super(SpeakerNetFC, self).__init__()
 
         drop_prop = 1 - keep_prop
         self.num_speaker = num_speaker
+        self.device = device
 
         self.conv_layer = nn.Sequential(ConvBlock())
 
@@ -118,6 +119,7 @@ class SpeakerNetFC(nn.Module):
                 nn.BatchNorm2d(512),
                 ClippedReLU(True),
             )
+            self.conv_fc1.to(self.device)
 
         # conv_fc1 out: [batch, channel, audio_time_dim, audio_feature_dim=1]
         x = self.conv_fc1(x)
@@ -142,11 +144,12 @@ class SpeakerNetFC(nn.Module):
 
 class SpeakerNetEM(nn.Module):
 
-    def __init__(self, keep_prop=0.8):
+    def __init__(self, device, keep_prop=0.8):
         super(SpeakerNetEM, self).__init__()
 
         drop_prop = 1 - keep_prop
         self.conv_layer = nn.Sequential(ConvBlock())
+        self.device = device
 
         self.conv_fc1 = None
 
@@ -172,6 +175,7 @@ class SpeakerNetEM(nn.Module):
                 nn.BatchNorm2d(512),
                 ClippedReLU(True),
             )
+            self.conv_fc1.to(self.device)
 
         # conv_fc1 out: [batch, channel, audio_time_dim, audio_feature_dim=1]
         x = self.conv_fc1(x)

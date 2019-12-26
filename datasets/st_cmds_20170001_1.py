@@ -6,6 +6,7 @@ from datasets.basic_dataset import BasicDataset
 
 class ST_CMDS_20170001_1(BasicDataset):
     ext_tuples = ('.wav', '.ogg')
+    sid_pre = 'st_cmds_20170001_1_'  # 保证id全局唯一, 添加前缀
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
         speaker_dict = dict()
@@ -13,10 +14,11 @@ class ST_CMDS_20170001_1(BasicDataset):
             path = os.path.join(root_directory, file)
             if self.is_in_exts(path, self.ext_tuples) and self.is_valid_audio(path):
                 speaker_id = file[8:14]
-                speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | {path}
+                speaker_id_with_pre = self.sid_pre + speaker_id
+                speaker_dict[speaker_id_with_pre] = speaker_dict.get(speaker_id_with_pre, set()) | {path}
 
-        dev_size = min(int(len(speaker_dict) * 0.2), 10000)
-        test_size = min(int(len(speaker_dict) * 0.2), 10000)
+        dev_size = min(int(len(speaker_dict) * 0.05), 10000)
+        test_size = min(int(len(speaker_dict) * 0.05), 10000)
         train_size = len(speaker_dict) - dev_size - test_size
 
         train_dict = dict()

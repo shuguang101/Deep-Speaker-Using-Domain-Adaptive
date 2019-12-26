@@ -1,16 +1,21 @@
 # -*- coding:utf-8 -*-
 
+import essentia
 import librosa
 import random
 import os
 import subprocess
 import numpy as np
 import scipy.signal as signal
-from essentia import standard
+import traceback
 from scipy.signal import lfilter
 
 from numpy import (asarray, mean, ndarray, ones, product, ravel, where)
 from scipy.signal.signaltools import correlate
+
+# 屏蔽日志输出
+essentia.log.infoActive = False
+from essentia import standard
 
 
 def load_audio_as_mono(audio_path, output_sample_rate):
@@ -64,12 +69,21 @@ def fbank(audio_data, audio_sr, **kwargs):
 
     # 获取fbank特征, shape=[n_mels, t]
     f_bank = librosa.power_to_db(mel_spec)
-
-    # 标准化
-    f_bank = (f_bank - np.mean(f_bank, axis=0)) / (np.std(f_bank, axis=0) + 2e-12)
     f_bank = f_bank.astype(np.float32)
 
     return f_bank.T
+
+
+def add_deltas_librosa(data, orders=(1, 2), axis=0, width=5):
+    # 大量实验表明,在语音特征中加入表征语音动态特征的查分参数, 能够提高系统的识别性能
+    # data shape: [time_dim, features_dim]
+    diff_list = [data]
+    for i in orders:
+        # default axis=-1, return delta_data: shape=(d, t)]
+        delta_i = librosa.feature.delta(data, width=width, order=i, axis=axis)
+        diff_list.append(delta_i)
+    result_data = np.concatenate(tuple(diff_list), axis=1)
+    return result_data
 
 
 def do_audio_augmentation(audio_data, audio_sr):
@@ -194,7 +208,7 @@ def wiener_my(im, mysize=None, noise=None):
 
 def convert_audio_files(root_dir,
                         raw_file_ext_tuples=('.wav',),
-                        new_file_ext='.ogg',
+                        new_file_ext='.m4a',
                         sr=44100,
                         channel=1,
                         remove_raw_file=False):
@@ -204,41 +218,61 @@ def convert_audio_files(root_dir,
 
     # 使用ffmpeg转换audio文件
     def audio_convert(raw_audio_path):
-        audio_path_without_ext = os.path.splitext(raw_audio_path)[0]
-        cmd = [
-            'ffmpeg',
-            '-i', str(raw_audio_path),
-            '-f', str(new_file_ext),
-            '-ar', str(sr),
-            '-ac', str(channel),
-            '-y', str(audio_path_without_ext + new_file_ext)
+        result = 0
+        try:
+            audio_path_without_ext = os.path.splitext(raw_audio_path)[0]
+            new_audio_path = str(audio_path_without_ext + new_file_ext)
+            if new_audio_path == raw_audio_path:
+                new_audio_path += new_file_ext
 
-        ]
-        p1 = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout, stderr = p1.communicate()
-        stdout_str, stderr_str = stdout.decode('utf-8'), stderr.decode('utf-8')
+            cmd_f = str(new_file_ext[1:])
+            if cmd_f == 'm4a':
+                cmd_f = 'mp4'
 
-        if p1.returncode != 0:
-            print('audio convert error: ', raw_audio_path)
-            print('std out:\r\n%s' % stdout_str)
-            print('std error:\r\n%s' % stderr_str)
-            return -1
-        return 0
+            cmd = [
+                'ffmpeg',
+                '-i', str(raw_audio_path),
+                '-f', cmd_f,
+                '-ar', str(sr),
+                '-ac', str(channel),
+                '-y', new_audio_path
+
+            ]
+
+            if cmd_f not in ('flac', 'wav', 'ape', 'ogg'):
+                cmd.insert(3, '-ab')
+                cmd.insert(4, '320k')
+
+            p1 = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p1.communicate()
+            stdout_str, stderr_str = stdout.decode('utf-8'), stderr.decode('utf-8')
+
+            if p1.returncode != 0:
+                print('audio convert error: ', raw_audio_path)
+                print('std out:\r\n%s' % stdout_str)
+                print('std error:\r\n%s' % stderr_str)
+                result = -1
+        except Exception:
+            result = -1
+        return result
 
     total = 0
     failed_list = []
-    for root, dirs, files in os.walk(root_dir):
-        for file in files:
-            file_path = os.path.join(root, file)
-            file_ext = os.path.splitext(file_path)[-1]
 
-            if file_ext in raw_file_ext_tuples:
-                is_success = audio_convert(file_path)
-                if is_success == 0:
-                    if remove_raw_file:
-                        os.remove(file_path)
-                else:
-                    failed_list.append(file_path)
-                total += 1
+    try:
+        for root, dirs, files in os.walk(root_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                file_ext = os.path.splitext(file_path)[-1]
+                if file_ext in raw_file_ext_tuples:
+                    is_success = audio_convert(file_path)
+                    if is_success == 0:
+                        if remove_raw_file:
+                            os.remove(file_path)
+                    else:
+                        failed_list.append(file_path)
+                    total += 1
+    except Exception:
+        print(traceback.format_exc())
 
     return total, failed_list

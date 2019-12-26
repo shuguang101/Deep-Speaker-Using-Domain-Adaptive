@@ -5,6 +5,7 @@ from datasets.basic_dataset import BasicDataset
 
 
 class LibriSpeech(BasicDataset):
+    sid_pre = 'librispeech_'  # 保证id全局唯一, 添加前缀
     ext_tuples = ('.wav', '.ogg')
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
@@ -32,6 +33,7 @@ class LibriSpeech(BasicDataset):
                     paths = set(filter(lambda fpath: self.is_in_exts(path, self.ext_tuples)
                                                      and self.is_valid_audio(fpath), paths))
                     if len(paths) > 0:
-                        speaker_dict[speaker_id] = speaker_dict.get(speaker_id, set()) | paths
+                        speaker_id_with_pre = self.sid_pre + speaker_id
+                        speaker_dict[speaker_id_with_pre] = speaker_dict.get(speaker_id_with_pre, set()) | paths
 
         return speaker_dict

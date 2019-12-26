@@ -1,0 +1,19 @@
+OGG的优势范围：96K以上（OGG）
+AAC的优势范围：AAC LC应高于（包含）256K AAC HE 48K-96K
+Mp3的优势范围：192K（包含）以上
+WMA的优势范围：128K（包含）以下
+
+国语流行或许选择128/192K已足矣，而对于交响/经典女声之作或许选择320K~无损更为合适。
+
+1.压缩比比较：
+aac>ogg>mp3(wma)>ape>flac>wav（同一音源条件下）
+mp3和wma以192kbps为分界线，192kbps以上mp3好，192kbps以下wma好。
+
+2.音质比较：
+wav=flac=ape>aac>ogg>mp3>wma
+
+3.硬件支持比较：
+MP3播放器：mp3>wma>wav>flac>ape>aac>ogg
+手机：mp3>wma>aac>wav>flac>ogg>ape
+
+4.综合性能（就是综合音质体积编码率）：aac>ogg>flac ape>mp3>wav>wma
