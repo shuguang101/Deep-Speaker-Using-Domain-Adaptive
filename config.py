@@ -31,9 +31,9 @@ class DefaultConfig(object):
     # 窗口类型
     window = 'blackman'
     # mel滤波器数量
-    n_mels = 128
+    n_mels = 40
     # 大量实验表明,在语音特征中加入表征语音动态特征的查分参数(即:使用1阶2阶差分), 能够提高系统的识别性能
-    used_delta_orders = (2,)
+    used_delta_orders = (1, 2,)
 
     # 图标大小(tensor board 中使用)
     icon_size = 15
@@ -53,11 +53,15 @@ class DefaultConfig(object):
 
     max_epoch = 200
     lr = 1e-3
+    em_train_fix_params = False
     weight_decay = 5e-4
     momentum = 0.9
     dropout_keep_prop = 0.8
 
+    # 预训练文件路径, 如果不为空(预训练或正式训练会先加载该网络参数)
     pre_train_status_dict_path = None
+    # 正式训练文件路径, 如果不为空, 正式训练会先加载该网络参数
+    status_dict_path = None
     # 覆盖网络参数
     override_net_params = False
 
@@ -70,9 +74,14 @@ class DefaultConfig(object):
 
     num_workers = 2  # 10
     pin_memory = False
-    batch_size = 8  # 13
+    batch_size = 32  # 13
     dataloader_timeout = 120
     shuffle = False
+
+    # 0:not search hard negative 1:hardest negatives  2:semi-hard negatives
+    hard_negative_level = 0
+    hard_negative_size = 10  # 存储的历史数据总条数, 在这些数据中进行hard negative search
+    hard_negative_recompute_every_step = 5
 
     # train: 2338 speakers, 281241 files
     # test:  88 speakers, 19920 files
@@ -103,7 +112,7 @@ class DefaultConfig(object):
     #
     # # eval_every_step = 37868
     #
-    # em_train_fix_params = False
+    #
     #
     # triplet_loss_margin = 0.2
     # intra_class_radius = 0.6

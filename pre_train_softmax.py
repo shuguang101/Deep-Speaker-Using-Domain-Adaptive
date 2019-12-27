@@ -83,7 +83,7 @@ def train(**kwargs):
     opt_attrs = common_util.get_all_attribute(opt)
     params_dict = {k: getattr(opt, k) for k in opt_attrs}
 
-    # 测试数据集参数
+    # 数据集参数
     dataset_train_param = {**params_dict, **{'dataset_type_name': 'train'}}
     dataset_test_param = {**params_dict, **{'dataset_type_name': 'test'}}
     # 读取训练数据
@@ -139,6 +139,7 @@ def train(**kwargs):
     avg_loss_meter = meter.AverageValueMeter()
     avg_acc_meter = meter.AverageValueMeter()
 
+    speaker_net.train()
     while epoch <= opt.max_epoch:
         total_batch = train_dataloader.__len__()
         for i, (a, p, n, p_nid, p_did, n_nid, n_did) in enumerate(train_dataloader):

@@ -56,25 +56,28 @@ class ConvBlock(nn.Module):
 
             nn.MaxPool2d(3, stride=2, padding=1),
 
+            # ResidualBlock(64, 64),
             ResidualBlock(64, 64),
             ResidualBlock(64, 64),
 
             nn.Conv2d(64, 128, 3, 2, 1, bias=False),
             nn.BatchNorm2d(128),
             ClippedReLU(True),
-            ResidualBlock(128, 128),
+            # ResidualBlock(128, 128),
             ResidualBlock(128, 128),
             ResidualBlock(128, 128),
 
             nn.Conv2d(128, 256, 3, 2, 1, bias=False),
             nn.BatchNorm2d(256),
             ClippedReLU(True),
+            # ResidualBlock(256, 256),
             ResidualBlock(256, 256),
             ResidualBlock(256, 256),
 
             nn.Conv2d(256, 512, 3, 2, 1, bias=False),
             nn.BatchNorm2d(512),
             ClippedReLU(True),
+            # ResidualBlock(512, 512),
             ResidualBlock(512, 512),
             ResidualBlock(512, 512)
         )

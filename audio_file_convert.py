@@ -6,8 +6,9 @@ if __name__ == '__main__':
     # /data/open_source_dataset/test/
     # /data/open_source_dataset/vox1/
     # /data/open_source_dataset/ST-CMDS-20170001_1-OS/
+    # /data/open_source_dataset/LibriSpeech /LibriSpeech/
 
-    root_dir = '/data/open_source_dataset/test/'
+    root_dir = '/data/open_source_dataset/LibriSpeech /LibriSpeech/train-clean-100/'
     raw_file_ext_tuples = ('.wav', '.flac', '.m4a', '.ogg')
     new_file_ext = '.m4a'
     sr = 16000
