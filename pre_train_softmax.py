@@ -19,6 +19,7 @@ from tensorboardX import SummaryWriter
 from config import opt
 from utils import common_util
 from nets.speaker_net_cnn import SpeakerNetFC
+from nets.discriminator_cnn import DANet
 from datasets.voxceleb1 import VoxCeleb1
 
 
@@ -113,8 +114,21 @@ def train(**kwargs):
                                                            mode='min',
                                                            patience=1,
                                                            factor=0.2)
-
     ce_loss = torch.nn.CrossEntropyLoss().to(device)
+
+    # 判别器网络
+    da_lr = opt.da_lr
+    da_net = DANet(512, train_dataset.num_of_domain)
+    da_net.to(device)
+    da_optimizer = torch.optim.SGD(da_net.parameters(),
+                                   lr=da_lr,
+                                   weight_decay=opt.da_weight_decay,
+                                   momentum=opt.da_momentum)
+    da_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(da_optimizer,
+                                                              mode='min',
+                                                              patience=1,
+                                                              factor=0.2)
+    da_ce_loss = torch.nn.CrossEntropyLoss().to(device)
 
     if opt.pre_train_status_dict_path and os.path.exists(opt.pre_train_status_dict_path):
         print('load status dict \"%s\"' % opt.pre_train_status_dict_path)
@@ -134,7 +148,9 @@ def train(**kwargs):
         speaker_net.set_dropout_keep_prop(opt.dropout_keep_prop)
 
     avg_loss_meter = meter.AverageValueMeter()
+    da_avg_loss_meter = meter.AverageValueMeter()
     avg_acc_meter = meter.AverageValueMeter()
+    da_avg_acc_meter = meter.AverageValueMeter()
 
     speaker_net.train()
     while epoch <= opt.max_epoch:
@@ -145,11 +161,29 @@ def train(**kwargs):
             # run one step
             positive = p.to(device)
             positive_label = p_nid.to(device)
+            positive_domain_id = p_did.to(device)
 
             # net backward
+            # step 1: 训练判别器
+            da_optimizer.zero_grad()
+            speaker_net.eval()
+            da_net.train()
+            _ = speaker_net(positive)
+            da_out = da_net(speaker_net.feature_map_detach)
+            da_loss = da_ce_loss(da_out, positive_domain_id)
+            da_loss.backward()
+            da_optimizer.step()
+
+            # step 2:
             optimizer.zero_grad()
+            da_net.eval()
+            speaker_net.train()
             positive_out = speaker_net(positive)
-            loss = ce_loss(positive_out, positive_label)
+            da_out = da_net(speaker_net.feature_map)
+            da_loss = da_ce_loss(da_out, positive_domain_id)
+
+            loss = ce_loss(positive_out, positive_label) - opt.da_lambda * da_loss
+
             loss.backward()
             optimizer.step()
 
@@ -157,16 +191,29 @@ def train(**kwargs):
             _, predict_label = torch.max(positive_out, 1)
             correct_count = (predict_label == positive_label).sum()
             acc = correct_count.float() / positive_out.size(0)
+
+            _, predict_domain_id = torch.max(da_out, 1)
+            da_correct_count = (positive_domain_id == predict_domain_id).sum()
+            da_acc = da_correct_count.float() / da_out.size(0)
+
             # 统计平均值
             avg_loss_meter.add(loss.item())
             avg_acc_meter.add(acc.item())
+            da_avg_loss_meter.add(da_loss.item())
+            da_avg_acc_meter.add(da_acc.item())
 
+            # da_net
+            summary_writer.add_scalar('da_net/b_loss', da_loss.item(), global_step)
+            summary_writer.add_scalar('da_net/avg_loss', da_avg_loss_meter.value()[0], global_step)
+            summary_writer.add_scalar('da_net/b_acc', da_acc.item(), global_step)
+            summary_writer.add_scalar('da_net/avg_acc', da_avg_acc_meter.value()[0], global_step)
             # 写入tensor board 日志
             summary_writer.add_scalar('loss/b_loss', loss.item(), global_step)
             summary_writer.add_scalar('loss/avg_loss', avg_loss_meter.value()[0], global_step)
             summary_writer.add_scalar('acc/b_acc', acc.item(), global_step)
             summary_writer.add_scalar('acc/avg_acc', avg_acc_meter.value()[0], global_step)
             summary_writer.add_scalar('net_params/lr', lr, global_step)
+            summary_writer.add_scalar('net_params/da_lr', da_lr, global_step)
             summary_writer.add_scalar('mean/predicted_label', torch.mean(predict_label.float()).item(), global_step)
             summary_writer.add_scalar('mean/true_label', torch.mean(positive_label.float()).item(), global_step)
 
@@ -214,9 +261,13 @@ def train(**kwargs):
 
         epoch += 1
         scheduler.step(avg_loss_meter.value()[0])
+        da_scheduler.step(da_avg_loss_meter.value()[0])
         avg_loss_meter.reset()
+        da_avg_loss_meter.reset()
         avg_acc_meter.reset()
+        da_avg_acc_meter.reset()
         lr = optimizer.param_groups[0]['lr']
+        da_lr = da_optimizer.param_groups[0]['lr']
 
     summary_writer.close()
 

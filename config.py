@@ -68,6 +68,11 @@ class DefaultConfig(object):
     # 是否冰冻参数
     em_train_fix_params = False
 
+    # da 参数
+    da_lr = 1e-3
+    da_weight_decay = 5e-4
+    da_momentum = 0.9
+
     # 打印时机
     print_every_step = 100
     # 保存时机(0-1.0], 默认每个epoch保存两次(1/2处及epoch结尾处)
@@ -79,6 +84,8 @@ class DefaultConfig(object):
     hard_negative_level = 2
     hard_negative_size = 8192  # 存储的历史数据总条数, 在这些数据中进行hard negative search
     hard_negative_recompute_every_step = 16
+    # domain adapation loss 项权重 (normal_loss + lambda*da_loss)
+    da_lambda = 1.0
     # triplet loss
     triplet_loss_margin = 0.2
     # 类内半径

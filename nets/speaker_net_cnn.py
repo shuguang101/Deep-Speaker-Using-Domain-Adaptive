@@ -99,6 +99,8 @@ class SpeakerNetFC(nn.Module):
         self.conv_layer = nn.Sequential(ConvBlock())
 
         self.conv_fc1 = None
+        self.feature_map = None
+        self.feature_map_detach = None
 
         self.fc2 = nn.Sequential(
             nn.Dropout(p=drop_prop),
@@ -132,6 +134,10 @@ class SpeakerNetFC(nn.Module):
 
         # x out: [batch, channel]
         x = x.view(x.size(0), -1)
+
+        # 抽象特征
+        self.feature_map = x
+        self.feature_map_detach = x.detach()
 
         # input shape: [batch, channel], output shape: [batch, num_speaker]
         x = self.fc2(x)
