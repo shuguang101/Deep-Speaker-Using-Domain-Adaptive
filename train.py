@@ -11,19 +11,16 @@ import fire
 import torch
 import os
 import datetime
-import copy
 import numpy as np
 import random
 from functools import reduce
 from torchnet import meter
-from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
 from config import opt
 from utils import common_util
 from nets.speaker_net_cnn import SpeakerNetEM
 from nets.intra_class_loss import IntraClassLoss
-from datasets.voxceleb1 import VoxCeleb1
 from utils import metric_util
 
 
@@ -44,12 +41,17 @@ def do_net_eval(**kwargs):
                                                                                   thresholds_list,
                                                                                   test_dataset,
                                                                                   device,
-                                                                                  max_people_to_compare=5,
-                                                                                  max_bs=32,
-                                                                                  min_bs=16)
+                                                                                  max_people_to_compare=8,
+                                                                                  max_bs=8,
+                                                                                  min_bs=8)
 
     summary_writer.add_scalar('eval_eer/eer', eer, global_step)
     summary_writer.add_scalar('eval_eer/th', th_root, global_step)
+
+    # 用于在tensor board中显示聚类效果
+    em_mat, em_imgs, em_id = test_dataset.get_batch_speaker_data_with_icon(10, 50)
+    em_mat_out = speaker_net(em_mat.to(device)).cpu()
+    summary_writer.add_embedding(em_mat_out, metadata=em_id, label_img=em_imgs, global_step=global_step)
 
     # 测试完成切换回train模式
     speaker_net.train()
@@ -72,9 +74,23 @@ def train(**kwargs):
     dataset_test_param = {**params_dict, **{'dataset_type_name': 'test'}}
 
     # 读取训练数据
-    train_dataset, train_dataloader = common_util.load_data(opt, **dataset_train_param)
-    identity_speaker_data_gen = train_dataset.identity_speaker_data_gen_forever()
-    test_dataset, test_dataloader = common_util.load_data(opt, **dataset_test_param)
+    # train_dataset, train_dataloader = common_util.load_data(opt, **dataset_train_param)
+    # identity_speaker_data_gen = train_dataset.identity_speaker_data_gen_forever(opt.batch_size)
+    # test_dataset, test_dataloader = common_util.load_data(opt, **dataset_test_param)
+
+    # 读取测试数据
+    from datasets.voxceleb1 import VoxCeleb1
+    from torch.utils.data import DataLoader
+    import copy
+    train_dataset = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
+    train_dataloader = DataLoader(train_dataset,
+                                  shuffle=opt.shuffle,
+                                  batch_size=opt.batch_size,
+                                  num_workers=opt.num_workers,
+                                  pin_memory=opt.pin_memory,
+                                  timeout=opt.dataloader_timeout)
+    identity_speaker_data_gen = train_dataset.identity_speaker_data_gen_forever(opt.batch_size)
+    test_dataset, test_dataloader = copy.deepcopy(train_dataset), copy.deepcopy(train_dataloader)
 
     # tensor board summary writer
     summary_writer = SummaryWriter(log_dir=os.path.join(fdir, 'net_data/summary_log_dir/train/'))
@@ -227,10 +243,11 @@ def train(**kwargs):
                             else:
                                 hard_negative_list.append(negative[a_index, :].unsqueeze(0))
 
-                del negative, hard_negative_list, anchor_output
+                del negative, anchor_output
                 del positive_label, positive_output, distances_ap, distances_an
-                torch.cuda.empty_cache()
                 negative = torch.cat(tuple(hard_negative_list), 0)
+                del hard_negative_list
+                torch.cuda.empty_cache()
 
             optimizer.zero_grad()
             a_output = speaker_net(anchor)
@@ -249,7 +266,7 @@ def train(**kwargs):
             summary_writer.add_scalar('loss/avg_loss', avg_loss_meter.value()[0], global_step)
             summary_writer.add_scalar('net_params/lr', lr, global_step)
 
-            if (global_step - 1) % opt.clustering_every_step == 0:
+            if opt.clustering_every_step > 0 and (global_step - 1) % opt.clustering_every_step == 0:
                 identity_data = next(identity_speaker_data_gen).to(device)
 
                 optimizer.zero_grad()
@@ -266,7 +283,7 @@ def train(**kwargs):
             if (global_step - 1) % opt.print_every_step == 0:
                 line_info = 'ep={:<3}({:<13}), '.format(epoch, str(i + 1) + '/' + str(total_batch))
                 line_info += 'steps={:<9}, '.format(global_step)
-                line_info += 'b_loss={:<3.2f}, avg_loss={:<3.2f}, '.format(loss.item(), avg_loss_meter.value()[0])
+                line_info += 'b_loss={:<3.2f}, avg_loss={:<3.2f}'.format(loss.item(), avg_loss_meter.value()[0])
                 print(line_info)
 
             # 定期保存
@@ -283,12 +300,12 @@ def train(**kwargs):
                 }
                 torch.save(states_dict, save_path)
 
-                # # 评估模型
-                # eval_params = {
-                #     'speaker_net': speaker_net, 'device': device, 'global_step': global_step,
-                #     'ce_loss': ce_loss, 'summary_writer': summary_writer, 'train_dataset': train_dataset,
-                # }
-                # do_net_eval(**eval_params)
+                # 评估模型
+                eval_params = {
+                    'speaker_net': speaker_net, 'device': device, 'global_step': global_step,
+                    'summary_writer': summary_writer, 'test_dataset': test_dataset,
+                }
+                do_net_eval(**eval_params)
 
             # 保存last_checkpoint.pth以防意外情况导致训练进度丢失
             if (global_step - 1) % opt.last_checkpoint_save_interval == 0:

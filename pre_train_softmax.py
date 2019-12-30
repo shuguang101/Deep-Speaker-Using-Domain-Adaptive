@@ -11,8 +11,6 @@ import fire
 import torch
 import os
 import datetime
-import copy
-import numpy as np
 
 from torchnet import meter
 from torch.utils.data import DataLoader
@@ -30,7 +28,6 @@ def do_net_eval(**kwargs):
     global_step = kwargs['global_step']
     ce_loss = kwargs['ce_loss']
     summary_writer = kwargs['summary_writer']
-
     train_dataset = kwargs['train_dataset']
 
     # 清空缓存

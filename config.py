@@ -34,12 +34,6 @@ class DefaultConfig(object):
     n_mels = 40
     # 大量实验表明,在语音特征中加入表征语音动态特征的查分参数(即:使用1阶2阶差分), 能够提高系统的识别性能
     used_delta_orders = (1, 2,)
-
-    # 图标大小(tensor board 中使用)
-    icon_size = 15
-    # 图标透明度
-    icon_alpha = 0.35
-
     # 音频文件最短长度
     audio_file_min_duration = 3.0
     # 使用的长度
@@ -48,40 +42,60 @@ class DefaultConfig(object):
     do_augmentation = True
     # 是否固定锚点
     fixed_anchor = False
-
+    # data loader 进程数
+    num_workers = 2
+    # batch size
+    batch_size = 32
+    # data loader 超时时间
+    dataloader_timeout = 120
+    # data loader是否进行shuffle
+    shuffle = False
+    #
+    pin_memory = False
+    # 是否使用gpu
     use_gpu = True
 
+    # 训练最多的epoch数
     max_epoch = 200
+    # 学习速率
     lr = 1e-3
-    em_train_fix_params = False
+    # SGD参数
     weight_decay = 5e-4
+    # SGD参数
     momentum = 0.9
+    # dropout
     dropout_keep_prop = 0.8
+    # 是否冰冻参数
+    em_train_fix_params = False
 
-    # 预训练文件路径, 如果不为空(预训练或正式训练会先加载该网络参数)
-    pre_train_status_dict_path = None
-    # 正式训练文件路径, 如果不为空, 正式训练会先加载该网络参数
-    status_dict_path = None
-    # 覆盖网络参数
-    override_net_params = False
-
+    # 打印时机
     print_every_step = 100
-
     # 保存时机(0-1.0], 默认每个epoch保存两次(1/2处及epoch结尾处)
     save_points_list = [0.5, 1.0]
     # last_checkpoint.pth 保存间隔(单位step)
     last_checkpoint_save_interval = 200
 
-    num_workers = 2  # 10
-    pin_memory = False
-    batch_size = 32  # 13
-    dataloader_timeout = 120
-    shuffle = False
-
     # 0:not search hard negative 1:hardest negatives  2:semi-hard negatives
-    hard_negative_level = 0
-    hard_negative_size = 10  # 存储的历史数据总条数, 在这些数据中进行hard negative search
-    hard_negative_recompute_every_step = 5
+    hard_negative_level = 2
+    hard_negative_size = 8192  # 存储的历史数据总条数, 在这些数据中进行hard negative search
+    hard_negative_recompute_every_step = 16
+    # triplet loss
+    triplet_loss_margin = 0.2
+    # 类内半径
+    clustering_every_step = 8
+    intra_class_radius = 0.6
+
+    # 覆盖网络参数
+    override_net_params = False
+    # 预训练文件路径, 如果不为空(预训练或正式训练会先加载该网络参数)
+    pre_train_status_dict_path = None
+    # 正式训练文件路径, 如果不为空, 正式训练会先加载该网络参数
+    status_dict_path = None
+
+    # 图标大小(tensor board 中使用)
+    icon_size = 15
+    # 图标透明度
+    icon_alpha = 0.35
 
     # train: 2338 speakers, 281241 files
     # test:  88 speakers, 19920 files
@@ -100,66 +114,10 @@ class DefaultConfig(object):
     # 测试数据集(vox1 子集)
     test_used_dataset = '/data/open_source_dataset/test'
 
-    #
-    # vis = True
-    # embedding_every_step = -1
-
-    # # schedule_lr_decay_every_step = 70000
-    # # lr_decay_every_step = 5000  # 500
-    # # decay_error_tolerance = 1.1  # do decay if avg_loss > previous_loss * decay_error_tolerance
-    # save_every_step = [1, 2]
-    # clustering_every_step = -1  # 8
-    #
-    # # eval_every_step = 37868
-    #
-    #
-    #
-    # triplet_loss_margin = 0.2
-    # intra_class_radius = 0.6
-    #
-    # max_epoch = 200
-    #
-    # # off line search, on line search need bigger batch size
-    # search_hard_negative = True
-    # hard_negative_cache_size = 250  # 500
-    # hard_negative_level = 0  # 0:hardest negatives  1:semi-hard negatives  2:no-zero loss negatives
-    # hard_negative_recompute_every_step = 5
-    # fixed_anchor = False
-    # do_augmentation = True
-    #
-    # status_dict_path = '/home/mqb/project/DeepSpeaker/checkpoints/cnn/26_2924856__2019-10-18_19_56_13.pth'
-    # pre_train_model_path = None
-    #
-
-    # dataloader_timeout = 120
-    # restart_retry_num = 3  # when python program failed, restart it
-    # restart_retry_num_reset_time = 60 * 30  # when program runs normally for 30 minutes, reset retry_num_flag
-    #
-
-    #
-    # summary_log_dir = './summary_log_dir/cnn'
-    # checkpoints_dir = './checkpoints/cnn'
-    #
-    # summary_log_dir_pre = './summary_log_dir/pre_train/cnn'
-    # checkpoints_dir_pre = './checkpoints/pre_train/cnn'
-    #
-    # shuffle = False
-    #
-    # # overwritten_val_in_status_dict
-    # ow_val = False
-    #
-    # def is_do_save(self, step, total_batch_step):
-    #     sign = False
-    #     for e_step in self.save_every_step:
-    #         tmp = int(total_batch_step // e_step)
-    #         if step % tmp == 0:
-    #             sign = True
-    #             break
-    #     return sign
-
 
 opt = DefaultConfig()
 
+# .m4a file, mono, 320k
 # 60G	/data/open_source_dataset/LibriSpeech
 # 13G	/data/open_source_dataset/ST-CMDS-20170001_1-OS
 # 6.2G	/data/open_source_dataset/vox1
