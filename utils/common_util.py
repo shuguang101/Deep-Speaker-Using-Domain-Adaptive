@@ -31,7 +31,7 @@ def load_data(opt, **kwargs):
     librispeech = LibriSpeech(opt.libriSpeech, **kwargs)
     voxceleb1 = VoxCeleb1(opt.voxceleb1, **kwargs)
     voxceleb2 = VoxCeleb2(opt.voxceleb2, **kwargs)
-    merged_data = MergedDataset(None, speaker_dict_tuple=(st_cmds_20170001_1,
+    merged_data = MergedDataset(None, dataset_tuple=(st_cmds_20170001_1,
                                                           librispeech,
                                                           voxceleb1,
                                                           voxceleb2),

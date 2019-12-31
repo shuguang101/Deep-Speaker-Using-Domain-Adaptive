@@ -31,7 +31,7 @@ class DefaultConfig(object):
     # 窗口类型
     window = 'blackman'
     # mel滤波器数量
-    n_mels = 40
+    n_mels = 60
     # 大量实验表明,在语音特征中加入表征语音动态特征的查分参数(即:使用1阶2阶差分), 能够提高系统的识别性能
     used_delta_orders = (1, 2,)
     # 音频文件最短长度
@@ -68,10 +68,15 @@ class DefaultConfig(object):
     # 是否冰冻参数
     em_train_fix_params = False
 
-    # da 参数
-    da_lr = 1e-3
+    # da domain_adapation参数
+    da_lr = 5e-4
     da_weight_decay = 5e-4
     da_momentum = 0.9
+    da_patience = 3
+    # domain adapation loss 项权重 (normal_loss + lambda*da_loss)
+    da_avg_acc_th = 0.65
+    da_every_step = 8
+    da_lambda = 1.0
 
     # 打印时机
     print_every_step = 100
@@ -82,10 +87,9 @@ class DefaultConfig(object):
 
     # 0:not search hard negative 1:hardest negatives  2:semi-hard negatives
     hard_negative_level = 2
-    hard_negative_size = 8192  # 存储的历史数据总条数, 在这些数据中进行hard negative search
+    hard_negative_size = 128  # 8192  # 存储的历史数据总条数, 在这些数据中进行hard negative search
     hard_negative_recompute_every_step = 16
-    # domain adapation loss 项权重 (normal_loss + lambda*da_loss)
-    da_lambda = 1.0
+
     # triplet loss
     triplet_loss_margin = 0.2
     # 类内半径

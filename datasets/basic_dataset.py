@@ -32,7 +32,7 @@ class BasicDataset(Dataset):
         # return a dict, which key is speaker id, value is a set() of audio path
         raise NotImplementedError
 
-    def __init__(self, root_directory, dataset_type_name='train', speaker_dict_tuple=(), **kwargs):
+    def __init__(self, root_directory, dataset_type_name='train', dataset_tuple=(), **kwargs):
         """
         kwargs(other_params)列表及默认值:
             fixed_anchor: False,
@@ -55,19 +55,19 @@ class BasicDataset(Dataset):
         # 数据集类型名称: train, dev, test等
         self.dataset_type_name = dataset_type_name
         # 类型为:[dict(),dict()], 每个dict(speaker_id -> audio_path)均代表一个数据集
-        self.speaker_dict_list = list(speaker_dict_tuple)
+        self.dataset_tuple_list = list(dataset_tuple)
         # 其他参数
         self.other_params = dict(kwargs)
         # 原始说话人id -> 域id(domain id)
         self.sid2did_dict = dict()
         # 域个数
-        self.num_of_domain = len(speaker_dict_tuple)
+        self.num_of_domain = max(1, len(dataset_tuple))
         # 选取的原始音频帧长度
         self.used_nframe = int(kwargs.get('used_duration', 2.0) * kwargs.get('sr', 44100))
 
         # 获取录音文件字典
-        if root_directory is not None:
-            print('[%s] scanning audio files in' % dataset_type_name, root_directory, end=', ', flush=True)
+        # if root_directory is not None:
+        print('[%s] scanning audio files in' % dataset_type_name, root_directory, end=', ', flush=True)
         # speaker_id -> audio_path set
         speaker_dict = self.__get_speaker_dict__(root_directory, dataset_type_name)
         # 由于使用triplet_loss单个说话人的录音个数需要大于2
@@ -124,7 +124,9 @@ class BasicDataset(Dataset):
                     self.audio_file_list.append(audio_path)
                     if len(speaker_dict[speaker_id]) == 0:
                         speaker_dict.pop(speaker_id)
-        print('total %d speakers, %d files.' % (self.num_of_speakers, len(self.audio_file_list)), flush=True)
+        print('using %d speakers, %d files. #files_split_for_eval=%d ' % (self.num_of_speakers,
+                                                                          len(self.audio_file_list),
+                                                                          len(self.eval_used_dict) * 2), flush=True)
 
     def __read_audio_tuple__(self, p_index):
         # get positive path

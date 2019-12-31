@@ -10,13 +10,17 @@ from datasets.st_cmds_20170001_1 import ST_CMDS_20170001_1
 from datasets.voxceleb2 import VoxCeleb2
 from datasets.voxceleb1 import VoxCeleb1
 from datasets.merged_dataset import MergedDataset
-
+from config import opt
+from utils import common_util
 from nets.speaker_net_cnn import SpeakerNetFC
 
 if __name__ == '__main__':
+    opt_attrs = common_util.get_all_attribute(opt)
+    params_dict = {k: getattr(opt, k) for k in opt_attrs}
+
     root_directory = '/data/open_source_dataset/test'
-    dataset_type_name = 'test'
-    vox1 = VoxCeleb1(root_directory, dataset_type_name, sr=16000, n_mels=512)
+    params_dict['dataset_type_name'] = 'test'
+    vox1 = VoxCeleb1(root_directory, **params_dict)
     device = torch.device('cpu')
 
     dl = DataLoader(vox1, batch_size=8)

@@ -20,6 +20,7 @@ from tensorboardX import SummaryWriter
 from config import opt
 from utils import common_util
 from nets.speaker_net_cnn import SpeakerNetEM
+from nets.discriminator_cnn import DANet
 from nets.intra_class_loss import IntraClassLoss
 from utils import metric_util
 
@@ -80,9 +81,14 @@ def train(**kwargs):
 
     # 读取测试数据
     from datasets.voxceleb1 import VoxCeleb1
+    from datasets.voxceleb2 import VoxCeleb2
     from torch.utils.data import DataLoader
     import copy
-    train_dataset = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
+    train_dataset1 = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
+    train_dataset2 = VoxCeleb2(opt.test_used_dataset + '1', **dataset_test_param)
+    from datasets.merged_dataset import MergedDataset
+    train_dataset = MergedDataset(None, dataset_tuple=(train_dataset1,
+                                                       train_dataset2), **dataset_test_param)
     train_dataloader = DataLoader(train_dataset,
                                   shuffle=opt.shuffle,
                                   batch_size=opt.batch_size,
@@ -125,17 +131,34 @@ def train(**kwargs):
     triplet_loss = torch.nn.TripletMarginLoss(margin=opt.triplet_loss_margin, p=2).to(device)
     intra_class_loss = IntraClassLoss(opt.intra_class_radius).to(device)
     avg_loss_meter = meter.AverageValueMeter()
+    da_avg_loss_meter = meter.AverageValueMeter()
+    da_avg_acc_meter = meter.AverageValueMeter()
+
+    # 判别器网络
+    da_lr = opt.da_lr
+    da_net = DANet(512, train_dataset.num_of_domain)
+    da_net.to(device)
+    da_optimizer = torch.optim.SGD(da_net.parameters(),
+                                   lr=da_lr,
+                                   weight_decay=opt.da_weight_decay,
+                                   momentum=opt.da_momentum)
+    da_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(da_optimizer,
+                                                              mode='min',
+                                                              patience=opt.da_patience,
+                                                              factor=0.2)
+    da_ce_loss = torch.nn.CrossEntropyLoss().to(device)
 
     if opt.pre_train_status_dict_path:
         print('load pre train model parameters')
         pre_trained_states_dict = torch.load(opt.pre_train_model_path, map_location)['net']
-
         model_state_dict = speaker_net.state_dict()
         part_of_pre_trained_states_dict = {k: v for k, v in pre_trained_states_dict.items() if
                                            k in model_state_dict}
-
         model_state_dict.update(part_of_pre_trained_states_dict)
         speaker_net.load_state_dict(model_state_dict)
+        da_net.load_state_dict(pre_trained_states_dict['da_net'])
+        da_optimizer.load_state_dict(pre_trained_states_dict['da_optimizer'])
+        da_lr = pre_trained_states_dict['da_optimizer']['param_groups'][0]['lr']
 
         del pre_trained_states_dict
         torch.cuda.empty_cache()
@@ -143,16 +166,18 @@ def train(**kwargs):
     if opt.status_dict_path:
         status_dict = torch.load(opt.status_dict_path, map_location)
         speaker_net.load_state_dict(status_dict['net'])
-
+        da_net.load_state_dict(status_dict['da_net'])
         try:
             print('load status dict paramters')
             optimizer.load_state_dict(status_dict['optimizer'])
+            da_optimizer.load_state_dict(status_dict['da_optimizer'])
         except Exception as e:
             print('warning: load optimizer status dict failed\r\n', e)
 
         global_step = status_dict['global_step']
         epoch = status_dict['epoch']
         lr = status_dict['optimizer']['param_groups'][0]['lr']
+        da_lr = status_dict['da_optimizer']['param_groups'][0]['lr']
 
         del status_dict
         torch.cuda.empty_cache()
@@ -162,6 +187,9 @@ def train(**kwargs):
         lr = opt.lr
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
+        da_lr = opt.da_lr
+        for param_group in da_optimizer.param_groups:
+            param_group['lr'] = da_lr
         speaker_net.set_dropout_keep_prop(opt.dropout_keep_prop)
 
     # 存储历史数据, 用于hard negative search
@@ -180,6 +208,32 @@ def train(**kwargs):
             anchor = a.to(device)
             positive = p.to(device)
             negative = n.to(device)
+            positive_domain_id = p_did.to(device)
+            negative_domain_id = n_did.to(device)
+
+            # net backward
+            # step 1: 训练判别器
+            da_optimizer.zero_grad()
+            speaker_net.eval()
+            da_net.train()
+            da_out = da_net(speaker_net(positive).detach())
+            da_loss = da_ce_loss(da_out, positive_domain_id)
+            da_loss.backward()
+            da_optimizer.step()
+
+            # 计算准确率
+            _, predict_domain_id = torch.max(da_out, 1)
+            da_correct_count = (positive_domain_id == predict_domain_id).sum()
+            da_acc = da_correct_count.float() / da_out.size(0)
+
+            da_avg_loss_meter.add(da_loss.item())
+            da_avg_acc_meter.add(da_acc.item())
+            # da_net
+            summary_writer.add_scalar('da_net/b_loss', da_loss.item(), global_step)
+            summary_writer.add_scalar('da_net/avg_loss', da_avg_loss_meter.value()[0], global_step)
+            summary_writer.add_scalar('da_net/b_acc', da_acc.item(), global_step)
+            summary_writer.add_scalar('da_net/avg_acc', da_avg_acc_meter.value()[0], global_step)
+            summary_writer.add_scalar('da_net/lr', da_lr, global_step)
 
             # hard negative search
             if opt.hard_negative_level > 0:
@@ -250,10 +304,24 @@ def train(**kwargs):
                 torch.cuda.empty_cache()
 
             optimizer.zero_grad()
+            da_net.eval()
+            speaker_net.train()
             a_output = speaker_net(anchor)
             p_output = speaker_net(positive)
             n_output = speaker_net(negative)
-            loss = triplet_loss(a_output, p_output, n_output)
+
+            da_out_p = da_net(p_output)
+            da_out_n = da_net(n_output)
+            da_loss_p = da_ce_loss(da_out_p, positive_domain_id)
+            da_loss_n = da_ce_loss(da_out_n, negative_domain_id)
+            da_loss = da_loss_p + da_loss_n
+            if da_avg_acc_meter.value()[0] >= opt.da_avg_acc_th and \
+                    opt.da_every_step > 0 \
+                    and (global_step - 1) % opt.da_every_step == 0:
+                da_loss = 1.0 * da_loss
+            else:
+                da_loss = 0.0 * da_loss
+            loss = triplet_loss(a_output, p_output, n_output) - opt.da_lambda * da_loss
             loss.backward()
             optimizer.step()
 
@@ -262,9 +330,9 @@ def train(**kwargs):
 
             avg_loss_meter.add(loss.item())
             # 写入tensor board 日志
-            summary_writer.add_scalar('loss/b_loss', loss.item(), global_step)
-            summary_writer.add_scalar('loss/avg_loss', avg_loss_meter.value()[0], global_step)
-            summary_writer.add_scalar('net_params/lr', lr, global_step)
+            summary_writer.add_scalar('train/loss/b_loss', loss.item(), global_step)
+            summary_writer.add_scalar('train/loss/avg_loss', avg_loss_meter.value()[0], global_step)
+            summary_writer.add_scalar('train/net_params/lr', lr, global_step)
 
             if opt.clustering_every_step > 0 and (global_step - 1) % opt.clustering_every_step == 0:
                 identity_data = next(identity_speaker_data_gen).to(device)
@@ -277,7 +345,7 @@ def train(**kwargs):
 
                 del identity_data, identity_output
                 torch.cuda.empty_cache()
-                summary_writer.add_scalar('loss/intra_class_loss', i_loss.item(), global_step)
+                summary_writer.add_scalar('train/loss/intra_class_loss', i_loss.item(), global_step)
 
             # 打印
             if (global_step - 1) % opt.print_every_step == 0:
@@ -294,7 +362,9 @@ def train(**kwargs):
                                          '%s_%s_%s.pth' % (epoch, global_step, date_str))
                 states_dict = {
                     'net': speaker_net.state_dict(),
+                    'da_net': da_net.state_dict(),
                     'optimizer': optimizer.state_dict(),
+                    'da_optimizer': da_optimizer.state_dict(),
                     'global_step': global_step,
                     'epoch': epoch
                 }
@@ -312,7 +382,9 @@ def train(**kwargs):
                 save_path = os.path.join(fdir, 'net_data/checkpoints/train/', 'last_checkpoint.pth')
                 states_dict = {
                     'net': speaker_net.state_dict(),
+                    'da_net': speaker_net.state_dict(),
                     'optimizer': optimizer.state_dict(),
+                    'da_optimizer': da_optimizer.state_dict(),
                     'global_step': global_step,
                     'epoch': epoch
                 }
@@ -323,8 +395,12 @@ def train(**kwargs):
 
         epoch += 1
         scheduler.step(avg_loss_meter.value()[0])
+        da_scheduler.step(avg_loss_meter.value()[0])
         avg_loss_meter.reset()
+        da_avg_loss_meter.reset()
+        da_avg_acc_meter.reset()
         lr = optimizer.param_groups[0]['lr']
+        da_lr = da_optimizer.param_groups[0]['lr']
 
     summary_writer.close()
 

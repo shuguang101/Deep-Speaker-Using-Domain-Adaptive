@@ -21,6 +21,7 @@ from utils import common_util
 from nets.speaker_net_cnn import SpeakerNetFC
 from nets.discriminator_cnn import DANet
 from datasets.voxceleb1 import VoxCeleb1
+from datasets.voxceleb2 import VoxCeleb2
 
 
 def do_net_eval(**kwargs):
@@ -87,7 +88,12 @@ def train(**kwargs):
     # 读取训练数据
     # train_dataset, train_dataloader = common_util.load_data(opt, **dataset_train_param)
     # 读取测试数据
-    train_dataset = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
+    train_dataset1 = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
+    train_dataset2 = VoxCeleb2(opt.test_used_dataset + '1', **dataset_test_param)
+
+    from datasets.merged_dataset import MergedDataset
+    train_dataset = MergedDataset(None, dataset_tuple=(train_dataset1,
+                                                       train_dataset2), **dataset_test_param)
     train_dataloader = DataLoader(train_dataset,
                                   shuffle=opt.shuffle,
                                   batch_size=opt.batch_size,
@@ -126,25 +132,31 @@ def train(**kwargs):
                                    momentum=opt.da_momentum)
     da_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(da_optimizer,
                                                               mode='min',
-                                                              patience=1,
+                                                              patience=opt.da_patience,
                                                               factor=0.2)
     da_ce_loss = torch.nn.CrossEntropyLoss().to(device)
 
     if opt.pre_train_status_dict_path and os.path.exists(opt.pre_train_status_dict_path):
-        print('load status dict \"%s\"' % opt.pre_train_status_dict_path)
-        status_dict = torch.load(opt.status_dict_path, map_location)
-        speaker_net.load_state_dict(status_dict['net'])
-        optimizer.load_state_dict(status_dict['optimizer'])
+        print('load pre train status dict \"%s\"' % opt.pre_train_status_dict_path)
+        pre_train_status_dict = torch.load(opt.pre_train_status_dict_path, map_location)
+        speaker_net.load_state_dict(pre_train_status_dict['net'])
+        da_net.load_state_dict(pre_train_status_dict['da_net'])
+        optimizer.load_state_dict(pre_train_status_dict['optimizer'])
+        da_optimizer.load_state_dict(pre_train_status_dict['da_optimizer'])
 
-        global_step = status_dict['global_step']
-        epoch = status_dict['epoch']
-        lr = status_dict['optimizer']['param_groups'][0]['lr']
+        global_step = pre_train_status_dict['global_step']
+        epoch = pre_train_status_dict['epoch']
+        lr = pre_train_status_dict['optimizer']['param_groups'][0]['lr']
+        da_lr = pre_train_status_dict['da_optimizer']['param_groups'][0]['lr']
 
     # 覆盖网络参数
     if opt.override_net_params:
         lr = opt.lr
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
+        da_lr = opt.da_lr
+        for param_group in da_optimizer.param_groups:
+            param_group['lr'] = da_lr
         speaker_net.set_dropout_keep_prop(opt.dropout_keep_prop)
 
     avg_loss_meter = meter.AverageValueMeter()
@@ -169,10 +181,24 @@ def train(**kwargs):
             speaker_net.eval()
             da_net.train()
             _ = speaker_net(positive)
-            da_out = da_net(speaker_net.feature_map_detach)
+            da_out = da_net(speaker_net.feature_map.detach())
             da_loss = da_ce_loss(da_out, positive_domain_id)
             da_loss.backward()
             da_optimizer.step()
+
+            # 计算准确率
+            _, predict_domain_id = torch.max(da_out, 1)
+            da_correct_count = (positive_domain_id == predict_domain_id).sum()
+            da_acc = da_correct_count.float() / da_out.size(0)
+
+            da_avg_loss_meter.add(da_loss.item())
+            da_avg_acc_meter.add(da_acc.item())
+            # da_net
+            summary_writer.add_scalar('da_net/b_loss', da_loss.item(), global_step)
+            summary_writer.add_scalar('da_net/avg_loss', da_avg_loss_meter.value()[0], global_step)
+            summary_writer.add_scalar('da_net/b_acc', da_acc.item(), global_step)
+            summary_writer.add_scalar('da_net/avg_acc', da_avg_acc_meter.value()[0], global_step)
+            summary_writer.add_scalar('da_net/lr', da_lr, global_step)
 
             # step 2:
             optimizer.zero_grad()
@@ -181,9 +207,13 @@ def train(**kwargs):
             positive_out = speaker_net(positive)
             da_out = da_net(speaker_net.feature_map)
             da_loss = da_ce_loss(da_out, positive_domain_id)
-
+            if da_avg_acc_meter.value()[0] >= opt.da_avg_acc_th and \
+                    opt.da_every_step > 0 \
+                    and (global_step - 1) % opt.da_every_step == 0:
+                da_loss = 1.0 * da_loss
+            else:
+                da_loss = 0.0 * da_loss
             loss = ce_loss(positive_out, positive_label) - opt.da_lambda * da_loss
-
             loss.backward()
             optimizer.step()
 
@@ -192,30 +222,18 @@ def train(**kwargs):
             correct_count = (predict_label == positive_label).sum()
             acc = correct_count.float() / positive_out.size(0)
 
-            _, predict_domain_id = torch.max(da_out, 1)
-            da_correct_count = (positive_domain_id == predict_domain_id).sum()
-            da_acc = da_correct_count.float() / da_out.size(0)
-
             # 统计平均值
             avg_loss_meter.add(loss.item())
             avg_acc_meter.add(acc.item())
-            da_avg_loss_meter.add(da_loss.item())
-            da_avg_acc_meter.add(da_acc.item())
-
-            # da_net
-            summary_writer.add_scalar('da_net/b_loss', da_loss.item(), global_step)
-            summary_writer.add_scalar('da_net/avg_loss', da_avg_loss_meter.value()[0], global_step)
-            summary_writer.add_scalar('da_net/b_acc', da_acc.item(), global_step)
-            summary_writer.add_scalar('da_net/avg_acc', da_avg_acc_meter.value()[0], global_step)
             # 写入tensor board 日志
-            summary_writer.add_scalar('loss/b_loss', loss.item(), global_step)
-            summary_writer.add_scalar('loss/avg_loss', avg_loss_meter.value()[0], global_step)
-            summary_writer.add_scalar('acc/b_acc', acc.item(), global_step)
-            summary_writer.add_scalar('acc/avg_acc', avg_acc_meter.value()[0], global_step)
-            summary_writer.add_scalar('net_params/lr', lr, global_step)
-            summary_writer.add_scalar('net_params/da_lr', da_lr, global_step)
-            summary_writer.add_scalar('mean/predicted_label', torch.mean(predict_label.float()).item(), global_step)
-            summary_writer.add_scalar('mean/true_label', torch.mean(positive_label.float()).item(), global_step)
+            summary_writer.add_scalar('train/loss/b_loss', loss.item(), global_step)
+            summary_writer.add_scalar('train/loss/avg_loss', avg_loss_meter.value()[0], global_step)
+            summary_writer.add_scalar('train/acc/b_acc', acc.item(), global_step)
+            summary_writer.add_scalar('train/acc/avg_acc', avg_acc_meter.value()[0], global_step)
+            summary_writer.add_scalar('train/net_params/lr', lr, global_step)
+            summary_writer.add_scalar('train/mean/predicted_label', torch.mean(predict_label.float()).item(),
+                                      global_step)
+            summary_writer.add_scalar('train/mean/true_label', torch.mean(positive_label.float()).item(), global_step)
 
             # 打印
             if (global_step - 1) % opt.print_every_step == 0:
@@ -233,7 +251,9 @@ def train(**kwargs):
                                          '%s_%s_%s.pth' % (epoch, global_step, date_str))
                 states_dict = {
                     'net': speaker_net.state_dict(),
+                    'da_net': da_net.state_dict(),
                     'optimizer': optimizer.state_dict(),
+                    'da_optimizer': da_optimizer.state_dict(),
                     'global_step': global_step,
                     'epoch': epoch
                 }
@@ -251,7 +271,9 @@ def train(**kwargs):
                 save_path = os.path.join(fdir, 'net_data/checkpoints/pre_train/', 'last_checkpoint.pth')
                 states_dict = {
                     'net': speaker_net.state_dict(),
+                    'da_net': da_net.state_dict(),
                     'optimizer': optimizer.state_dict(),
+                    'da_optimizer': da_optimizer.state_dict(),
                     'global_step': global_step,
                     'epoch': epoch
                 }
