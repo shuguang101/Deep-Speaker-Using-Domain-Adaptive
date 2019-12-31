@@ -261,17 +261,17 @@ def train(**kwargs):
                         while his_data_out.shape[0] < his_data.shape[0]:
                             s = his_data_out.shape[0]
                             tmp_out_i = speaker_net(his_data[s:s + opt.batch_size])
-                            his_data_output = torch.cat((his_data_output, tmp_out_i), 0)
+                            his_data_out = torch.cat((his_data_out, tmp_out_i), 0)
                             del tmp_out_i
                             torch.cuda.empty_cache()
 
-                    anchor_output = speaker_net(anchor)
-                    positive_output = speaker_net(positive)
-                    distances_ap = torch.norm(positive_output - anchor_output, dim=1)
+                    anchor_out = speaker_net(anchor)
+                    positive_out = speaker_net(positive)
+                    distances_ap = torch.norm(positive_out - anchor_out, dim=1)
 
-                    for a_index in range(anchor_output.shape[0]):
+                    for a_index in range(anchor_out.shape[0]):
                         # distances_ap + opt.triplet_loss_margin - distances_an
-                        distances_an = torch.norm(his_data_out - anchor_output[a_index, :], dim=1)
+                        distances_an = torch.norm(his_data_out - anchor_out[a_index, :], dim=1)
                         distances_an[his_data_label == positive_label[a_index]] = 1e30
                         distances_an[distances_an >= (distances_ap[a_index] + opt.triplet_loss_margin)] = 1e30
 
@@ -297,8 +297,8 @@ def train(**kwargs):
                             else:
                                 hard_negative_list.append(negative[a_index, :].unsqueeze(0))
 
-                del negative, anchor_output
-                del positive_label, positive_output, distances_ap, distances_an
+                del negative, anchor_out
+                del positive_label, positive_out, distances_ap, distances_an
                 negative = torch.cat(tuple(hard_negative_list), 0)
                 del hard_negative_list
                 torch.cuda.empty_cache()
@@ -306,12 +306,12 @@ def train(**kwargs):
             optimizer.zero_grad()
             da_net.eval()
             speaker_net.train()
-            a_output = speaker_net(anchor)
-            p_output = speaker_net(positive)
-            n_output = speaker_net(negative)
+            a_out = speaker_net(anchor)
+            p_out = speaker_net(positive)
+            n_out = speaker_net(negative)
 
-            da_out_p = da_net(p_output)
-            da_out_n = da_net(n_output)
+            da_out_p = da_net(p_out)
+            da_out_n = da_net(n_out)
             da_loss_p = da_ce_loss(da_out_p, positive_domain_id)
             da_loss_n = da_ce_loss(da_out_n, negative_domain_id)
             da_loss = da_loss_p + da_loss_n
@@ -321,11 +321,11 @@ def train(**kwargs):
                 da_loss = 1.0 * da_loss
             else:
                 da_loss = 0.0 * da_loss
-            loss = triplet_loss(a_output, p_output, n_output) - opt.da_lambda * da_loss
+            loss = triplet_loss(a_out, p_out, n_out) - opt.da_lambda * da_loss
             loss.backward()
             optimizer.step()
 
-            del anchor, positive, negative, a_output, p_output, n_output
+            del anchor, positive, negative, a_out, p_out, n_out
             torch.cuda.empty_cache()
 
             avg_loss_meter.add(loss.item())
@@ -338,12 +338,12 @@ def train(**kwargs):
                 identity_data = next(identity_speaker_data_gen).to(device)
 
                 optimizer.zero_grad()
-                identity_output = speaker_net(identity_data)
-                i_loss = intra_class_loss(identity_output)
+                identity_out = speaker_net(identity_data)
+                i_loss = intra_class_loss(identity_out)
                 i_loss.backward()
                 optimizer.step()
 
-                del identity_data, identity_output
+                del identity_data, identity_out
                 torch.cuda.empty_cache()
                 summary_writer.add_scalar('train/loss/intra_class_loss', i_loss.item(), global_step)
 
