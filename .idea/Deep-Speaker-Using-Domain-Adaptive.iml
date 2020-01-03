@@ -7,7 +7,7 @@
       <excludeFolder url="file://$MODULE_DIR$/net_data" />
       <excludeFolder url="file://$MODULE_DIR$/summary_log_dir" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.5" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.6" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="TestRunnerService">
