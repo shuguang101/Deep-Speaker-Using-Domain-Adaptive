@@ -87,7 +87,7 @@ class DefaultConfig(object):
 
     # 0:not search hard negative 1:hardest negatives  2:semi-hard negatives
     hard_negative_level = 2
-    hard_negative_size = 1024  # 存储的历史数据总条数, 在这些数据中进行hard negative search
+    hard_negative_size = 3072  # 存储的历史数据总条数, 在这些数据中进行hard negative search
     hard_negative_recompute_every_step = 16
 
     # triplet loss
