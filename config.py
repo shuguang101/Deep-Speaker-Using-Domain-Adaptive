@@ -45,7 +45,7 @@ class DefaultConfig(object):
     # data loader 进程数
     num_workers = 2
     # batch size
-    batch_size = 32
+    batch_size = 16
     # data loader 超时时间
     dataloader_timeout = 120
     # data loader是否进行shuffle
@@ -75,7 +75,7 @@ class DefaultConfig(object):
     da_patience = 3
     # domain adapation loss 项权重 (normal_loss + lambda*da_loss)
     da_avg_acc_th = 0.65
-    da_every_step = 8
+    da_every_step = 2
     da_lambda = 1.0
 
     # 打印时机

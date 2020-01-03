@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 
+import math
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -87,18 +88,30 @@ class ConvBlock(nn.Module):
         return x
 
 
+def get_num_of_f_dim(num_features):
+    result = math.floor((num_features + 2 * 1 - 1 * (7 - 1) - 1) / 2 + 1)
+    for i in range(4):
+        result = math.floor((result - 1) / 2 + 1)
+    return int(result)
+
+
 class SpeakerNetFC(nn.Module):
 
-    def __init__(self, num_speaker, device, keep_prop=0.8):
+    def __init__(self, num_speaker, num_features, keep_prop=0.8):
         super(SpeakerNetFC, self).__init__()
 
         drop_prop = 1 - keep_prop
         self.num_speaker = num_speaker
-        self.device = device
+        self.num_features = num_features
+        self.num_features_out = get_num_of_f_dim(num_features)
 
         self.conv_layer = nn.Sequential(ConvBlock())
+        self.conv_fc1 = nn.Sequential(
+            nn.Conv2d(512, 512, (1, self.num_features_out), 1, 0, bias=False),
+            nn.BatchNorm2d(512),
+            ClippedReLU(True),
+        )
 
-        self.conv_fc1 = None
         self.feature_map = None
 
         self.fc2 = nn.Sequential(
@@ -115,15 +128,6 @@ class SpeakerNetFC(nn.Module):
         # conv_layer input: [batch, channel=1, height, width], treat the spectrum as an one channel image
         # conv_layer out: [batch, channel, audio_time_dim, audio_feature_dim]
         x = self.conv_layer(x)
-
-        # 动态创建网络结构
-        if self.conv_fc1 is None:
-            self.conv_fc1 = nn.Sequential(
-                nn.Conv2d(512, 512, (1, x.shape[3]), 1, 0, bias=False),
-                nn.BatchNorm2d(512),
-                ClippedReLU(True),
-            )
-            self.conv_fc1.to(self.device)
 
         # conv_fc1 out: [batch, channel, audio_time_dim, audio_feature_dim=1]
         x = self.conv_fc1(x)
@@ -151,14 +155,19 @@ class SpeakerNetFC(nn.Module):
 
 class SpeakerNetEM(nn.Module):
 
-    def __init__(self, device, keep_prop=0.8):
+    def __init__(self, num_features, keep_prop=0.8):
         super(SpeakerNetEM, self).__init__()
 
         drop_prop = 1 - keep_prop
         self.conv_layer = nn.Sequential(ConvBlock())
-        self.device = device
+        self.num_features = num_features
+        self.num_features_out = get_num_of_f_dim(num_features)
 
-        self.conv_fc1 = None
+        self.conv_fc1 = nn.Sequential(
+            nn.Conv2d(512, 512, (1, self.num_features_out), 1, 0, bias=False),
+            nn.BatchNorm2d(512),
+            ClippedReLU(True),
+        )
 
         self.embedding_layer = nn.Sequential(
             nn.Dropout(p=drop_prop),
@@ -174,15 +183,6 @@ class SpeakerNetEM(nn.Module):
         # conv_layer input: [batch, channel=1, height, width], treat the spectrum as an one channel image
         # conv_layer out: [batch, channel, audio_time_dim, audio_feature_dim]
         x = self.conv_layer(x)
-
-        # 动态创建网络结构
-        if self.conv_fc1 is None:
-            self.conv_fc1 = nn.Sequential(
-                nn.Conv2d(512, 512, (1, x.shape[3]), 1, 0, bias=False),
-                nn.BatchNorm2d(512),
-                ClippedReLU(True),
-            )
-            self.conv_fc1.to(self.device)
 
         # conv_fc1 out: [batch, channel, audio_time_dim, audio_feature_dim=1]
         x = self.conv_fc1(x)

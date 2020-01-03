@@ -15,10 +15,13 @@ class DANet(nn.Module):
         self.num_domain = num_domain
         self.main = nn.Sequential(
             nn.Linear(self.num_features, 32),
-            nn.LeakyReLU(0.1, inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
+
+            nn.Linear(32, 32),
+            nn.LeakyReLU(0.2, inplace=True),
 
             nn.Linear(32, self.num_domain),
-            nn.LeakyReLU(0.1, inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
         )
 
     def forward(self, x):

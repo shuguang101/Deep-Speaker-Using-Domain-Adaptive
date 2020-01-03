@@ -77,6 +77,7 @@ def train(**kwargs):
     # 覆盖默认参数
     for k, v in kwargs.items():
         setattr(opt, k, v)
+    num_features = opt.n_mels * (1 + len(opt.used_delta_orders))
 
     # 获取参数
     opt_attrs = common_util.get_all_attribute(opt)
@@ -109,7 +110,7 @@ def train(**kwargs):
     device = torch.device('cuda') if opt.use_gpu else torch.device('cpu')
     map_location = lambda storage, loc: storage.cuda(0) if opt.use_gpu else lambda storage, loc: storage
 
-    speaker_net = SpeakerNetFC(train_dataset.num_of_speakers, device, opt.dropout_keep_prop)
+    speaker_net = SpeakerNetFC(train_dataset.num_of_speakers, num_features, opt.dropout_keep_prop)
     speaker_net.to(device)
 
     optimizer = torch.optim.SGD(speaker_net.parameters(),
@@ -160,6 +161,7 @@ def train(**kwargs):
         speaker_net.set_dropout_keep_prop(opt.dropout_keep_prop)
 
     avg_loss_meter = meter.AverageValueMeter()
+    raw_avg_loss_meter = meter.AverageValueMeter()
     da_avg_loss_meter = meter.AverageValueMeter()
     avg_acc_meter = meter.AverageValueMeter()
     da_avg_acc_meter = meter.AverageValueMeter()
@@ -213,7 +215,8 @@ def train(**kwargs):
                 da_loss = 1.0 * da_loss
             else:
                 da_loss = 0.0 * da_loss
-            loss = ce_loss(positive_out, positive_label) - opt.da_lambda * da_loss
+            raw_loss = ce_loss(positive_out, positive_label)
+            loss = raw_loss - opt.da_lambda * da_loss
             loss.backward()
             optimizer.step()
 
@@ -224,10 +227,13 @@ def train(**kwargs):
 
             # 统计平均值
             avg_loss_meter.add(loss.item())
+            raw_avg_loss_meter.add(raw_loss.item())
             avg_acc_meter.add(acc.item())
             # 写入tensor board 日志
+            summary_writer.add_scalar('train/loss/raw_b_loss', raw_loss.item(), global_step)
             summary_writer.add_scalar('train/loss/b_loss', loss.item(), global_step)
             summary_writer.add_scalar('train/loss/avg_loss', avg_loss_meter.value()[0], global_step)
+            summary_writer.add_scalar('train/loss/raw_avg_loss', raw_avg_loss_meter.value()[0], global_step)
             summary_writer.add_scalar('train/acc/b_acc', acc.item(), global_step)
             summary_writer.add_scalar('train/acc/avg_acc', avg_acc_meter.value()[0], global_step)
             summary_writer.add_scalar('train/net_params/lr', lr, global_step)
@@ -285,6 +291,7 @@ def train(**kwargs):
         scheduler.step(avg_loss_meter.value()[0])
         da_scheduler.step(da_avg_loss_meter.value()[0])
         avg_loss_meter.reset()
+        raw_avg_loss_meter.reset()
         da_avg_loss_meter.reset()
         avg_acc_meter.reset()
         da_avg_acc_meter.reset()

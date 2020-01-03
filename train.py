@@ -65,6 +65,7 @@ def train(**kwargs):
     # 覆盖默认参数
     for k, v in kwargs.items():
         setattr(opt, k, v)
+    num_features = opt.n_mels * (1+len(opt.used_delta_orders))
 
     # 获取参数
     opt_attrs = common_util.get_all_attribute(opt)
@@ -106,7 +107,7 @@ def train(**kwargs):
     device = torch.device('cuda') if opt.use_gpu else torch.device('cpu')
     map_location = lambda storage, loc: storage.cuda(0) if opt.use_gpu else lambda storage, loc: storage
 
-    speaker_net = SpeakerNetEM(device, opt.dropout_keep_prop)
+    speaker_net = SpeakerNetEM(num_features, opt.dropout_keep_prop)
     speaker_net.to(device)
 
     # 固定一部分参数
@@ -119,7 +120,7 @@ def train(**kwargs):
         for param in speaker_net.parameters():
             param.requires_grad = True
 
-    optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, speaker_net.parameters()),
+    optimizer = torch.optim.SGD(filter(lambda pa: pa.requires_grad, speaker_net.parameters()),
                                 lr=lr,
                                 weight_decay=opt.weight_decay,
                                 momentum=opt.momentum)
@@ -131,6 +132,7 @@ def train(**kwargs):
     triplet_loss = torch.nn.TripletMarginLoss(margin=opt.triplet_loss_margin, p=2).to(device)
     intra_class_loss = IntraClassLoss(opt.intra_class_radius).to(device)
     avg_loss_meter = meter.AverageValueMeter()
+    raw_avg_loss_meter = meter.AverageValueMeter()
     da_avg_loss_meter = meter.AverageValueMeter()
     da_avg_acc_meter = meter.AverageValueMeter()
 
@@ -150,9 +152,9 @@ def train(**kwargs):
 
     if opt.pre_train_status_dict_path:
         print('load pre train model parameters')
-        pre_trained_states_dict = torch.load(opt.pre_train_model_path, map_location)['net']
+        pre_trained_states_dict = torch.load(opt.pre_train_status_dict_path, map_location)
         model_state_dict = speaker_net.state_dict()
-        part_of_pre_trained_states_dict = {k: v for k, v in pre_trained_states_dict.items() if
+        part_of_pre_trained_states_dict = {k: v for k, v in pre_trained_states_dict['net'].items() if
                                            k in model_state_dict}
         model_state_dict.update(part_of_pre_trained_states_dict)
         speaker_net.load_state_dict(model_state_dict)
@@ -321,7 +323,8 @@ def train(**kwargs):
                 da_loss = 1.0 * da_loss
             else:
                 da_loss = 0.0 * da_loss
-            loss = triplet_loss(a_out, p_out, n_out) - opt.da_lambda * da_loss
+            raw_loss = triplet_loss(a_out, p_out, n_out)
+            loss = raw_loss - opt.da_lambda * da_loss
             loss.backward()
             optimizer.step()
 
@@ -329,9 +332,12 @@ def train(**kwargs):
             torch.cuda.empty_cache()
 
             avg_loss_meter.add(loss.item())
+            raw_avg_loss_meter.add(raw_loss.item())
             # 写入tensor board 日志
+            summary_writer.add_scalar('train/loss/raw_b_loss', raw_loss.item(), global_step)
             summary_writer.add_scalar('train/loss/b_loss', loss.item(), global_step)
             summary_writer.add_scalar('train/loss/avg_loss', avg_loss_meter.value()[0], global_step)
+            summary_writer.add_scalar('train/loss/raw_avg_loss', raw_avg_loss_meter.value()[0], global_step)
             summary_writer.add_scalar('train/net_params/lr', lr, global_step)
 
             if opt.clustering_every_step > 0 and (global_step - 1) % opt.clustering_every_step == 0:
@@ -397,6 +403,7 @@ def train(**kwargs):
         scheduler.step(avg_loss_meter.value()[0])
         da_scheduler.step(avg_loss_meter.value()[0])
         avg_loss_meter.reset()
+        raw_avg_loss_meter.reset()
         da_avg_loss_meter.reset()
         da_avg_acc_meter.reset()
         lr = optimizer.param_groups[0]['lr']

@@ -25,7 +25,7 @@ from utils import pil_util
 test_audio_path = 'audios/1_src2.wav'
 model_path = 'checkpoints/cnn/27_1770000__2019-05-28_07_25_26.pth'
 
-speaker_net = SpeakerNetEM(opt.dropout_keep_prop)
+speaker_net = SpeakerNetEM(opt.n_mels*3, opt.dropout_keep_prop)
 
 device = torch.device('cuda') if opt.gpu else torch.device('cpu')
 map_location = lambda storage, loc: storage.cuda(0) if opt.gpu else lambda storage, loc: storage

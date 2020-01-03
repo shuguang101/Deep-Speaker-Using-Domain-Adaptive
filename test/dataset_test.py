@@ -42,6 +42,6 @@ if __name__ == '__main__':
     for ii, (data, nid) in enumerate(eval_data):
         print(ii, data.shape, nid.shape, nid)
 
-    net = SpeakerNetFC(3, device, 0.8)
+    net = SpeakerNetFC(3, opt.n_mels*3, 0.8)
     out = net(speakers_012[0])
     print(out.shape)
