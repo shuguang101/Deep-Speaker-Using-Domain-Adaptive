@@ -5,7 +5,7 @@ from datasets.basic_dataset import BasicDataset
 
 
 class ST_CMDS_20170001_1(BasicDataset):
-    ext_tuples = ('.wav', '.ogg', '.flac', '.m4a')
+    ext_tuples = ('.m4a',)
     sid_pre = 'st_cmds_20170001_1_'  # 保证id全局唯一, 添加前缀
 
     def __get_speaker_dict__(self, root_directory, dataset_type_name):
@@ -17,8 +17,8 @@ class ST_CMDS_20170001_1(BasicDataset):
                 speaker_id_with_pre = self.sid_pre + speaker_id
                 speaker_dict[speaker_id_with_pre] = speaker_dict.get(speaker_id_with_pre, set()) | {path}
 
-        dev_size = min(int(len(speaker_dict) * 0.05), 10000)
-        test_size = min(int(len(speaker_dict) * 0.05), 10000)
+        dev_size = min(int(len(speaker_dict) * 0.05), 10)
+        test_size = min(int(len(speaker_dict) * 0.05), 10)
         train_size = len(speaker_dict) - dev_size - test_size
 
         train_dict = dict()

@@ -43,9 +43,9 @@ class DefaultConfig(object):
     # 是否固定锚点
     fixed_anchor = False
     # data loader 进程数
-    num_workers = 2
+    num_workers = 16
     # batch size
-    batch_size = 16
+    batch_size = 32
     # data loader 超时时间
     dataloader_timeout = 120
     # data loader是否进行shuffle
@@ -87,7 +87,7 @@ class DefaultConfig(object):
 
     # 0:not search hard negative 1:hardest negatives  2:semi-hard negatives
     hard_negative_level = 2
-    hard_negative_size = 128  # 8192  # 存储的历史数据总条数, 在这些数据中进行hard negative search
+    hard_negative_size = 1024  # 存储的历史数据总条数, 在这些数据中进行hard negative search
     hard_negative_recompute_every_step = 16
 
     # triplet loss
@@ -110,20 +110,20 @@ class DefaultConfig(object):
 
     # train: 2338 speakers, 281241 files
     # test:  88 speakers, 19920 files
-    libriSpeech = '/data/open_source_dataset/LibriSpeech'
+    libriSpeech = '/home/mqb/data/open_source_dataset/LibriSpeech'
     # 855 speakers, 102600 files, each speaker has 120 utterances
     # train: 0.9*855=769.5
     # dev:   0.05*855=42.75
     # test:  0.05*855=42.75
-    st_cmds_20170001_1 = '/data/open_source_dataset/ST-CMDS-20170001_1-OS'
+    st_cmds_20170001_1 = '/home/mqb/data/open_source_dataset/ST-CMDS-20170001_1-OS'
     # train: 5994 speakers, 1092009 files
     # test:  118 speakers, 36237 files
-    voxceleb2 = '/data/open_source_dataset/vox2'
+    voxceleb2 = '/home/mqb/data/open_source_dataset/vox2'
     # train: 1211 speakers, 148642 files.
     # test:  40 speakers, 4874 files
-    voxceleb1 = '/data/open_source_dataset/vox1'
+    voxceleb1 = '/home/mqb/data/open_source_dataset/vox1'
     # 测试数据集(vox1 子集)
-    test_used_dataset = '/data/open_source_dataset/test'
+    test_used_dataset = '/home/mqb/data/open_source_dataset/test'
 
 
 opt = DefaultConfig()
