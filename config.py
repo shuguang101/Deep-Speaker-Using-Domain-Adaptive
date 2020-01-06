@@ -43,9 +43,10 @@ class DefaultConfig(object):
     # 是否固定锚点
     fixed_anchor = False
     # data loader 进程数
-    num_workers = 16
+    num_workers = 10
     # batch size
-    batch_size = 32
+    # 64: pre 6g.
+    batch_size = 16
     # data loader 超时时间
     dataloader_timeout = 120
     # data loader是否进行shuffle
@@ -74,7 +75,7 @@ class DefaultConfig(object):
     da_momentum = 0.9
     da_patience = 3
     # domain adapation loss 项权重 (normal_loss + lambda*da_loss)
-    da_avg_acc_th = 0.65
+    da_avg_acc_th = 0.55
     da_every_step = 2
     da_lambda = 1.0
 
@@ -99,7 +100,7 @@ class DefaultConfig(object):
     # 覆盖网络参数
     override_net_params = False
     # 预训练文件路径, 如果不为空(预训练或正式训练会先加载该网络参数)
-    pre_train_status_dict_path = None
+    pre_train_status_dict_path = '/home/mqb/project/Deep-Speaker-Using-Domain-Adaptive/net_data/checkpoints/pre_train/1_36442_2020-01-06_00_53_01.pth'
     # 正式训练文件路径, 如果不为空, 正式训练会先加载该网络参数
     status_dict_path = None
 
