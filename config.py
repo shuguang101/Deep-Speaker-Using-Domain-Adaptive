@@ -43,7 +43,7 @@ class DefaultConfig(object):
     # 是否固定锚点
     fixed_anchor = False
     # data loader 进程数
-    num_workers = 10
+    num_workers = 8
     # batch size
     # 64: pre 6g.
     batch_size = 16

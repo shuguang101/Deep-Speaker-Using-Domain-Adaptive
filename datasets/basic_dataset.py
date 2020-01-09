@@ -4,7 +4,11 @@
 import os
 import random
 import copy
+import glob
 import torch
+import pickle
+import json
+import datetime
 import numpy as np
 
 from torch.utils.data import Dataset
@@ -23,6 +27,42 @@ class BasicDataset(Dataset):
             ext = None
         return ext
 
+    @staticmethod
+    def load_self(class_name):
+        try:
+            fdir = os.path.split(os.path.abspath(__file__))[0]
+            save_dir = os.path.join(fdir, '../net_data/datasets_caches/')
+            file_list = glob.glob(save_dir + '%s_*.pkl' % class_name)
+            # os.path.getctime -> float, 1573207494.7295158
+            file_list = list(map(lambda fp: (fp, os.path.getctime(fp)), file_list))
+            # Descending
+            file_list = list(sorted(file_list, key=lambda x: x[1], reverse=True))
+            with open(file_list[0][0], 'rb') as f:
+                self_obj = pickle.load(f)
+            print('successful loaded the cache file: %s' % file_list[0][0], flush=True)
+        except Exception:
+            self_obj = None
+        return self_obj
+
+    def dump_self(self):
+        fdir = os.path.split(os.path.abspath(__file__))[0]
+        save_dir = os.path.join(fdir, '../net_data/datasets_caches/')
+        class_name = self.__class__.__name__
+
+        date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
+        data_file = '%s__%s.pkl' % (class_name, date_str)
+        text_file = '%s__%s.txt' % (class_name, date_str)
+
+        params = {**{'root_directory': self.root_directory,
+                     'dataset_type_name': self.dataset_type_name,
+                     'dataset_tuple_list': self.dataset_tuple_list},
+                  **self.other_params}
+
+        with open(os.path.join(save_dir, data_file), 'wb') as f:
+            pickle.dump(self, f)
+        with open(os.path.join(save_dir, text_file), 'w') as f:
+            json.dump(params, f)
+
     def is_in_exts(self, path, ext_tuples):
         # 判断文件扩展名是否在ext_tuples内
         ext = self.get_ext(path)
@@ -32,7 +72,50 @@ class BasicDataset(Dataset):
         # return a dict, which key is speaker id, value is a set() of audio path
         raise NotImplementedError
 
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls)
+
+        if len(args) > 0 and len(kwargs) > 0:
+            is_params_changed = False
+            obj_cache = cls.load_self(cls.__name__)
+
+            if args[0] != obj_cache.root_directory:
+                is_params_changed = True
+
+            obj_cache_kwargs = {**{'dataset_type_name': obj_cache.dataset_type_name,
+                                   'dataset_tuple': obj_cache.dataset_tuple_list},
+                                **obj_cache.other_params}
+            # kwargs['dataset_tuple'] = list(kwargs['dataset_tuple'])
+
+            for key in obj_cache_kwargs.keys():
+                if obj_cache_kwargs[key] != kwargs.get(key, 'Empty_Val'):
+                    is_params_changed = True
+            # self.dataset_type_name = dataset_type_name
+            # # 类型为:[dict(),dict()], 每个dict(speaker_id -> audio_path)均代表一个数据集
+            # self.dataset_tuple_list = list(dataset_tuple)
+            # # 其他参数
+            # self.other_params = dict(kwargs)
+
+            print(args)
+            print(kwargs)
+            print(obj_cache_kwargs)
+            print(is_params_changed)
+
+            if obj_cache is not None and not is_params_changed:
+                obj = obj_cache
+                obj.is_loaded_from_pkl = True
+
+        return obj
+
     def __init__(self, root_directory, dataset_type_name='train', dataset_tuple=(), **kwargs):
+
+        if hasattr(self, 'is_loaded_from_pkl'):
+            print('[%s] using audio files in' % dataset_type_name, root_directory, end=', ', flush=True)
+            print('using %d speakers, %d files. #files_split_for_eval=%d ' % (self.num_of_speakers,
+                                                                              len(self.audio_file_list),
+                                                                              len(self.eval_used_dict) * 2), flush=True)
+            return
+
         """
         kwargs(other_params)列表及默认值:
             fixed_anchor: False,
@@ -49,7 +132,6 @@ class BasicDataset(Dataset):
             n_mels:256,
             used_delta_orders: (1,),
         """
-
         # 数据集根目录
         self.root_directory = root_directory
         # 数据集类型名称: train, dev, test等
@@ -127,6 +209,8 @@ class BasicDataset(Dataset):
         print('using %d speakers, %d files. #files_split_for_eval=%d ' % (self.num_of_speakers,
                                                                           len(self.audio_file_list),
                                                                           len(self.eval_used_dict) * 2), flush=True)
+        if not hasattr(self, 'is_loaded_from_pkl'):
+            self.dump_self()
 
     def __read_audio_tuple__(self, p_index):
         # get positive path

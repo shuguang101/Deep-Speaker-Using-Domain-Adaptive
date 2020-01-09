@@ -17,10 +17,11 @@ from nets.speaker_net_cnn import SpeakerNetFC
 if __name__ == '__main__':
     opt_attrs = common_util.get_all_attribute(opt)
     params_dict = {k: getattr(opt, k) for k in opt_attrs}
-
-    root_directory = '/data/open_source_dataset/test'
+    root_directory = '/home/mqb/data/open_source_dataset/test'
     params_dict['dataset_type_name'] = 'test'
     vox1 = VoxCeleb1(root_directory, **params_dict)
+
+    print(vox1.num_of_speakers)
     device = torch.device('cpu')
 
     dl = DataLoader(vox1, batch_size=8)
@@ -45,3 +46,5 @@ if __name__ == '__main__':
     net = SpeakerNetFC(3, opt.n_mels*3, 0.8)
     out = net(speakers_012[0])
     print(out.shape)
+
+
