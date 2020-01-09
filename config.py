@@ -75,7 +75,7 @@ class DefaultConfig(object):
     da_momentum = 0.9
     da_patience = 3
     # domain adapation loss 项权重 (normal_loss + lambda*da_loss)
-    da_avg_acc_th = 0.55
+    da_avg_acc_th = 0.58
     da_every_step = 2
     da_lambda = 1.0
 
