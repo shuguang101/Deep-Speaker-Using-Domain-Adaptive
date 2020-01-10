@@ -171,27 +171,24 @@ def train(**kwargs):
     while epoch <= opt.max_epoch:
         total_batch = train_dataloader.__len__()
         for i, (a, p, n, p_nid, p_did, n_nid, n_did) in enumerate(train_dataloader):
-            # 清空cuda缓存
             torch.cuda.empty_cache()
-            # run one step
-            positive = p.to(device)
-            positive_label = p_nid.to(device)
-            positive_domain_id = p_did.to(device)
 
-            # net backward
             # step 1: 训练判别器
+            negative = n.to(device)
+            negative_domain_id = n_did.to(device)
+
             da_optimizer.zero_grad()
             speaker_net.eval()
             da_net.train()
-            _ = speaker_net(positive)
+            _ = speaker_net(negative)
             da_out = da_net(speaker_net.feature_map.detach())
-            da_loss = da_ce_loss(da_out, positive_domain_id)
+            da_loss = da_ce_loss(da_out, negative_domain_id)
             da_loss.backward()
             da_optimizer.step()
 
             # 计算准确率
             _, predict_domain_id = torch.max(da_out, 1)
-            da_correct_count = (positive_domain_id == predict_domain_id).sum()
+            da_correct_count = (negative_domain_id == predict_domain_id).sum()
             da_acc = da_correct_count.float() / da_out.size(0)
 
             da_avg_loss_meter.add(da_loss.item())
@@ -204,6 +201,10 @@ def train(**kwargs):
             summary_writer.add_scalar('da_net/lr', da_lr, global_step)
 
             # step 2:
+            positive = p.to(device)
+            positive_label = p_nid.to(device)
+            positive_domain_id = p_did.to(device)
+
             optimizer.zero_grad()
             da_net.eval()
             speaker_net.train()

@@ -218,14 +218,14 @@ def train(**kwargs):
             da_optimizer.zero_grad()
             speaker_net.eval()
             da_net.train()
-            da_out = da_net(speaker_net(positive).detach())
-            da_loss = da_ce_loss(da_out, positive_domain_id)
+            da_out = da_net(speaker_net(negative).detach())
+            da_loss = da_ce_loss(da_out, negative_domain_id)
             da_loss.backward()
             da_optimizer.step()
 
             # 计算准确率
             _, predict_domain_id = torch.max(da_out, 1)
-            da_correct_count = (positive_domain_id == predict_domain_id).sum()
+            da_correct_count = (negative_domain_id == predict_domain_id).sum()
             da_acc = da_correct_count.float() / da_out.size(0)
 
             da_avg_loss_meter.add(da_loss.item())
