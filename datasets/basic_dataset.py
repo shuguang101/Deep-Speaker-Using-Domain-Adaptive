@@ -59,9 +59,8 @@ class BasicDataset(Dataset):
                      'num_files_split_for_eval': len(self.eval_used_dict),
                      'num_of_audio_file_list': len(self.audio_file_list),
                      'dataset_type_name': self.dataset_type_name,
-                     'dataset_tuple_list': self.dataset_tuple_list},
+                     'dataset_tuple_list': list(map(lambda ds: ds.__class__.__name__, self.dataset_tuple_list))},
                   **self.other_params}
-
         with open(os.path.join(save_dir, data_file), 'wb') as f:
             pickle.dump(self, f)
         with open(os.path.join(save_dir, text_file), 'w') as f:
