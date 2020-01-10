@@ -17,6 +17,9 @@ from nets.speaker_net_cnn import SpeakerNetFC
 if __name__ == '__main__':
     opt_attrs = common_util.get_all_attribute(opt)
     params_dict = {k: getattr(opt, k) for k in opt_attrs}
+
+    params_dict['sr'] = 44100
+
     root_directory = '/home/mqb/data/open_source_dataset/test'
     params_dict['dataset_type_name'] = 'test'
     vox1 = VoxCeleb1(root_directory, **params_dict)

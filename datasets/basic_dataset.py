@@ -10,6 +10,7 @@ import pickle
 import json
 import datetime
 import numpy as np
+from collections import Iterable
 
 from torch.utils.data import Dataset
 from utils import audio_util
@@ -85,32 +86,31 @@ class BasicDataset(Dataset):
             obj_cache_kwargs = {**{'dataset_type_name': obj_cache.dataset_type_name,
                                    'dataset_tuple': obj_cache.dataset_tuple_list},
                                 **obj_cache.other_params}
-            # kwargs['dataset_tuple'] = list(kwargs['dataset_tuple'])
 
             for key in obj_cache_kwargs.keys():
-                if obj_cache_kwargs[key] != kwargs.get(key, 'Empty_Val'):
+                val1 = obj_cache_kwargs.get(key, list())
+                val2 = kwargs.get(key, list())
+                val1 = list(val1) if isinstance(val1, Iterable) else val1
+                val2 = list(val2) if isinstance(val2, Iterable) else val2
+
+                if val1 != val2:
                     is_params_changed = True
-            # self.dataset_type_name = dataset_type_name
-            # # 类型为:[dict(),dict()], 每个dict(speaker_id -> audio_path)均代表一个数据集
-            # self.dataset_tuple_list = list(dataset_tuple)
-            # # 其他参数
-            # self.other_params = dict(kwargs)
 
-            print(args)
-            print(kwargs)
-            print(obj_cache_kwargs)
-            print(is_params_changed)
-
-            if obj_cache is not None and not is_params_changed:
+            if (obj_cache is not None) and (not is_params_changed):
                 obj = obj_cache
                 obj.is_loaded_from_pkl = True
+
+            if obj_cache is None:
+                print('read the cache file failed, re scan the audio files', flush=True)
+            if is_params_changed:
+                print('parameters changed, re scan the audio files', flush=True)
 
         return obj
 
     def __init__(self, root_directory, dataset_type_name='train', dataset_tuple=(), **kwargs):
 
         if hasattr(self, 'is_loaded_from_pkl'):
-            print('[%s] using audio files in' % dataset_type_name, root_directory, end=', ', flush=True)
+            print('[cached][%s] using audio files in' % dataset_type_name, root_directory, end=', ', flush=True)
             print('using %d speakers, %d files. #files_split_for_eval=%d ' % (self.num_of_speakers,
                                                                               len(self.audio_file_list),
                                                                               len(self.eval_used_dict) * 2), flush=True)
