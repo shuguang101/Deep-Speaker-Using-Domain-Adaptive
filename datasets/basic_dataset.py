@@ -120,7 +120,7 @@ class BasicDataset(Dataset):
         self.all_params_set = {
             'fixed_anchor': False, 'sr': 16000, 'audio_file_min_duration': 3.0,
             'used_duration': 2.0, 'icon_size': 15, 'icon_alpha': 0.35, 'do_augmentation': True,
-            'n_fft': 2048, 'win_length': 1103, 'hop_length': 275,
+            'n_fft': 2048, 'win_length': 400, 'hop_length': 100,
             'window': 'blackman', 'n_mels': 60, 'used_delta_orders': (1, 2)}
         for key in self.all_params_set:
             val = kwargs.get(key, None)
