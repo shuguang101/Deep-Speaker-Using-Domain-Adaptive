@@ -55,6 +55,9 @@ class BasicDataset(Dataset):
         text_file = '%s__%s.txt' % (class_name, date_str)
 
         params = {**{'root_directory': self.root_directory,
+                     'num_of_speakers': self.num_of_speakers,
+                     'num_files_split_for_eval': len(self.eval_used_dict),
+                     'num_of_audio_file_list': len(self.audio_file_list),
                      'dataset_type_name': self.dataset_type_name,
                      'dataset_tuple_list': self.dataset_tuple_list},
                   **self.other_params}

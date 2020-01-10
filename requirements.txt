@@ -2,3 +2,9 @@ pytorch
 numpy
 torch
 essentia
+tensorboardX
+librosa
+scipy
+torchnet
+matplotlib
+fire
