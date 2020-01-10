@@ -84,7 +84,7 @@ class DefaultConfig(object):
     # 保存时机(0-1.0], 默认每个epoch保存两次(1/2处及epoch结尾处)
     save_points_list = [0.5, 1.0]
     # last_checkpoint.pth 保存间隔(单位step)
-    last_checkpoint_save_interval = 200
+    last_checkpoint_save_interval = 270
 
     # 0:not search hard negative 1:hardest negatives  2:semi-hard negatives
     hard_negative_level = 2
@@ -100,7 +100,7 @@ class DefaultConfig(object):
     # 覆盖网络参数
     override_net_params = False
     # 预训练文件路径, 如果不为空(预训练或正式训练会先加载该网络参数)
-    pre_train_status_dict_path = '/home/mqb/project/Deep-Speaker-Using-Domain-Adaptive/net_data/checkpoints/pre_train/1_36442_2020-01-06_00_53_01.pth'
+    pre_train_status_dict_path = '/home/mqb/project/Deep-Speaker-Using-Domain-Adaptive/net_data/checkpoints/pre_train/last_checkpoint.pth'
     # 正式训练文件路径, 如果不为空, 正式训练会先加载该网络参数
     status_dict_path = None
 

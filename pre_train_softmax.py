@@ -146,7 +146,7 @@ def train(**kwargs):
         optimizer.load_state_dict(pre_train_status_dict['optimizer'])
         da_optimizer.load_state_dict(pre_train_status_dict['da_optimizer'])
 
-        global_step = pre_train_status_dict['global_step']
+        global_step = pre_train_status_dict['global_step'] + 1
         epoch = pre_train_status_dict['epoch']
         lr = pre_train_status_dict['optimizer']['param_groups'][0]['lr']
         da_lr = pre_train_status_dict['da_optimizer']['param_groups'][0]['lr']

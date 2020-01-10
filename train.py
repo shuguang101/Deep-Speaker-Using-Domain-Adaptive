@@ -176,7 +176,7 @@ def train(**kwargs):
         except Exception as e:
             print('warning: load optimizer status dict failed\r\n', e)
 
-        global_step = status_dict['global_step']
+        global_step = status_dict['global_step'] + 1
         epoch = status_dict['epoch']
         lr = status_dict['optimizer']['param_groups'][0]['lr']
         da_lr = status_dict['da_optimizer']['param_groups'][0]['lr']
