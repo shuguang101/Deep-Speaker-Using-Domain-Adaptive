@@ -80,31 +80,29 @@ class BasicDataset(Dataset):
             is_params_changed = False
             obj_cache = cls.load_self(cls.__name__)
 
-            if args[0] != obj_cache.root_directory:
-                is_params_changed = True
-
-            obj_cache_kwargs = {**{'dataset_type_name': obj_cache.dataset_type_name,
-                                   'dataset_tuple': obj_cache.dataset_tuple_list},
-                                **obj_cache.other_params}
-
-            for key in obj_cache_kwargs.keys():
-                val1 = obj_cache_kwargs.get(key, list())
-                val2 = kwargs.get(key, list())
-                val1 = list(val1) if isinstance(val1, Iterable) else val1
-                val2 = list(val2) if isinstance(val2, Iterable) else val2
-
-                if val1 != val2:
+            if obj_cache is not None:
+                if args[0] != obj_cache.root_directory:
                     is_params_changed = True
 
-            if (obj_cache is not None) and (not is_params_changed):
-                obj = obj_cache
-                obj.is_loaded_from_pkl = True
+                obj_cache_kwargs = {**{'dataset_type_name': obj_cache.dataset_type_name,
+                                       'dataset_tuple': obj_cache.dataset_tuple_list},
+                                    **obj_cache.other_params}
+
+                for key in obj_cache_kwargs.keys():
+                    val1 = obj_cache_kwargs.get(key, list())
+                    val2 = kwargs.get(key, list())
+                    val1 = list(val1) if isinstance(val1, Iterable) else val1
+                    val2 = list(val2) if isinstance(val2, Iterable) else val2
+                    if val1 != val2:
+                        is_params_changed = True
+                if not is_params_changed:
+                    obj = obj_cache
+                    obj.is_loaded_from_pkl = True
 
             if obj_cache is None:
                 print('read the cache file failed, re scan the audio files', flush=True)
             if is_params_changed:
                 print('parameters changed, re scan the audio files', flush=True)
-
         return obj
 
     def __init__(self, root_directory, dataset_type_name='train', dataset_tuple=(), **kwargs):
@@ -116,30 +114,27 @@ class BasicDataset(Dataset):
                                                                               len(self.eval_used_dict) * 2), flush=True)
             return
 
-        """
-        kwargs(other_params)列表及默认值:
-            fixed_anchor: False,
-            sr: 44100,
-            audio_file_min_duration: 3.0,
-            used_duration: 2.0,
-            icon_size: 15,
-            icon_alpha: 0.35,
-            do_augmentation: True,
-            n_fft: 2048,
-            win_length: 1103,
-            hop_length: 275,
-            window: blackman,
-            n_mels:256,
-            used_delta_orders: (1,),
-        """
+        # 其他参数
+        self.other_params = dict()
+        # kwargs(other_params)列表及默认值
+        self.all_params_set = {
+            'fixed_anchor': False, 'sr': 16000, 'audio_file_min_duration': 3.0,
+            'used_duration': 2.0, 'icon_size': 15, 'icon_alpha': 0.35, 'do_augmentation': True,
+            'n_fft': 2048, 'win_length': 1103, 'hop_length': 275,
+            'window': 'blackman', 'n_mels': 60, 'used_delta_orders': (1, 2)}
+        for key in self.all_params_set:
+            val = kwargs.get(key, None)
+            if val is None:
+                val = self.all_params_set[key]
+                print('warning: lack the parameter "%s", using default value: %s' % (key, val))
+            self.other_params[key] = val
+
         # 数据集根目录
         self.root_directory = root_directory
         # 数据集类型名称: train, dev, test等
         self.dataset_type_name = dataset_type_name
         # 类型为:[dict(),dict()], 每个dict(speaker_id -> audio_path)均代表一个数据集
         self.dataset_tuple_list = list(dataset_tuple)
-        # 其他参数
-        self.other_params = dict(kwargs)
         # 原始说话人id -> 域id(domain id)
         self.sid2did_dict = dict()
         # 域个数
@@ -183,8 +178,8 @@ class BasicDataset(Dataset):
             # 将set转为list
             self.speaker_dict[speaker_id] = list(self.speaker_dict[speaker_id])
 
-        rand_icon = pil_util.RandIcon(self.other_params.get('icon_size', 15),
-                                      self.other_params.get('icon_alpha', 0.35))
+        rand_icon = pil_util.RandIcon(self.other_params['icon_size'],
+                                      self.other_params['icon_alpha'])
         # nid -> icon, 通过id找寻对应的图标
         self.nid2icon_dict = dict()
         # did -> icon, 通过id找寻对应的图标
@@ -221,7 +216,7 @@ class BasicDataset(Dataset):
 
         # get anchor path
         p_list = self.speaker_dict[p_sid]
-        if self.other_params.get('fixed_anchor', False):
+        if self.other_params['fixed_anchor']:
             a_path = p_list[0]
         else:
             a_path = random.choice(p_list)
@@ -236,9 +231,9 @@ class BasicDataset(Dataset):
         n_did = self.sid2did_dict[n_sid]
 
         # 读取音频数据
-        y_a = audio_util.load_audio_as_mono(a_path, self.other_params.get('sr', 44100))
-        y_p = audio_util.load_audio_as_mono(p_path, self.other_params.get('sr', 44100))
-        y_n = audio_util.load_audio_as_mono(n_path, self.other_params.get('sr', 44100))
+        y_a = audio_util.load_audio_as_mono(a_path, self.other_params['sr'])
+        y_p = audio_util.load_audio_as_mono(p_path, self.other_params['sr'])
+        y_n = audio_util.load_audio_as_mono(n_path, self.other_params['sr'])
 
         return y_a, y_p, y_n, p_nid, p_did, n_nid, n_did
 
@@ -246,8 +241,8 @@ class BasicDataset(Dataset):
         # 通过判断该音频文件能否正常读取及音频时长进行判断
         result = True
         try:
-            sr = self.other_params.get('sr', 44100)
-            audio_file_min_duration = self.other_params.get('audio_file_min_duration', 3.0)
+            sr = self.other_params['sr']
+            audio_file_min_duration = self.other_params['audio_file_min_duration']
 
             y = audio_util.load_audio_as_mono(audio_path, sr)
             duration = y.shape[0] / sr
@@ -265,17 +260,17 @@ class BasicDataset(Dataset):
 
     def get_features(self, audio_data):
         # 获取音频采样频率
-        sr = self.other_params.get('sr', 44100)
+        sr = self.other_params['sr']
         # 是否进行augmentation, shape会发生变化(time_dim 会边长或变短)
-        do_augmentation = self.other_params.get('do_augmentation', True)
+        do_augmentation = self.other_params['do_augmentation']
         # 获取频谱相关参数
-        n_fft = self.other_params.get('n_fft', 2048)
-        win_length = self.other_params.get('win_length', 1103)  # 25ms (sr=44100)
-        hop_length = self.other_params.get('hop_length', 275)  # 1/4 of window size
-        window = self.other_params.get('window', 'blackman')
-        n_mels = self.other_params.get('n_mels', 256)
+        n_fft = self.other_params['n_fft']
+        win_length = self.other_params['win_length']  # 25ms (sr=44100)
+        hop_length = self.other_params['hop_length']  # 1/4 of window size
+        window = self.other_params['window']
+        n_mels = self.other_params['n_mels']
         # 是否使用动态特征, None或空元组则不使用动态特征, 如下代码默认使用1阶动态特征
-        used_delta_orders = self.other_params.get('used_delta_orders', (1,))
+        used_delta_orders = self.other_params['used_delta_orders']
 
         # 进行数据增强
         if do_augmentation:
@@ -329,7 +324,7 @@ class BasicDataset(Dataset):
         sid = self.nid2sid_dict[nid]
 
         # 获取音频采样频率
-        sr = self.other_params.get('sr', 44100)
+        sr = self.other_params['sr']
         # 获取sid对应的音频文件路径列表
         path_list = self.speaker_dict[sid]
 
@@ -361,7 +356,7 @@ class BasicDataset(Dataset):
         speaker_id_list = []
 
         # 获取音频采样频率
-        sr = self.other_params.get('sr', 44100)
+        sr = self.other_params['sr']
 
         selected_sids = random.sample(self.sorted_sids_list, num_of_speaker)
         count = 0
@@ -392,7 +387,7 @@ class BasicDataset(Dataset):
             nid = self.sid2nid_dict[sid]
             paths = self.eval_used_dict[sid]
             for path in paths:
-                y = audio_util.load_audio_as_mono(path, self.other_params.get('sr', 44100))
+                y = audio_util.load_audio_as_mono(path, self.other_params['sr'])
                 f = self.get_features(y)
                 data_list.append(f)
                 nid_list.append(nid)
