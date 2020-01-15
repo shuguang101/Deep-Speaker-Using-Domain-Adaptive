@@ -249,7 +249,7 @@ def train(**kwargs):
                 line_info += 'steps={:<9}, '.format(global_step)
                 line_info += 'b_loss={:<3.2f}, avg_loss={:<3.2f}, '.format(loss.item(), avg_loss_meter.value()[0])
                 line_info += 'b_acc={:<2.2%}, avg_acc={:<2.2%}'.format(acc.item(), avg_acc_meter.value()[0])
-                print(line_info)
+                print(line_info, flush=True)
 
             # 定期保存
             if (global_step - 1) % total_batch + 1 in [int(x * total_batch) for x in opt.save_points_list]:

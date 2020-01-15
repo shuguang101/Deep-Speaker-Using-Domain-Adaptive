@@ -43,7 +43,7 @@ class DefaultConfig(object):
     # 是否固定锚点
     fixed_anchor = False
     # data loader 进程数
-    num_workers = 8
+    num_workers = 4
     # batch size
     # 64: pre 6g.
     batch_size = 16
@@ -52,7 +52,7 @@ class DefaultConfig(object):
     # data loader是否进行shuffle
     shuffle = False
     #
-    pin_memory = False
+    pin_memory = True
     # 是否使用gpu
     use_gpu = True
 

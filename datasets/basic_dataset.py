@@ -107,6 +107,30 @@ class BasicDataset(Dataset):
                 print('parameters changed, re scan the audio files', flush=True)
         return obj
 
+    def __my_id_str__(self):
+        id_str = ''
+        id_str += self.root_directory + '_'
+
+        params = {**{'dataset_type_name': self.dataset_type_name},
+                  **self.other_params}
+
+        if len(self.dataset_tuple_list) > 0:
+            for ds in self.dataset_tuple_list:
+                class_name = ds.__class__.__name__
+                params['ds_tuple_%s' % class_name] = ds.__my_id_str__
+
+        for key, val in params.items():
+            val = list(val) if isinstance(val, Iterable) else val
+            id_str += 'key_%s__val_%s' % (key, val)
+        return id_str
+
+    def __eq__(self, o: object) -> bool:
+        if (o is None) or (not isinstance(o, self.__class__)):
+            return False
+
+        is_eq = self.__my_id_str__() == o.__my_id_str__()
+        return is_eq
+
     def __init__(self, root_directory, dataset_type_name='train', dataset_tuple=(), **kwargs):
 
         if hasattr(self, 'is_loaded_from_pkl'):
@@ -255,12 +279,16 @@ class BasicDataset(Dataset):
         return result
 
     def audio_data_slice(self, audio_data):
-        # 从原始音频数据中截取一定长度的音频
-        index = random.randint(0, audio_data.shape[0] - self.used_nframe)
-        sliced_audio_data = audio_data[index:index + self.used_nframe]
+        if audio_data.shape[0] < self.used_nframe:
+            # 从原始音频数据中截取一定长度的音频
+            index = random.randint(0, audio_data.shape[0] - self.used_nframe)
+            sliced_audio_data = audio_data[index:index + self.used_nframe]
+        else:
+            sliced_audio_data = audio_data
+
         return sliced_audio_data
 
-    def get_features(self, audio_data):
+    def get_features(self, audio_data, do_audio_data_slice=True):
         # 获取音频采样频率
         sr = self.other_params['sr']
         # 是否进行augmentation, shape会发生变化(time_dim 会边长或变短)
@@ -282,7 +310,8 @@ class BasicDataset(Dataset):
         audio_data = audio_util.de_noise(audio_data, sr)
 
         # 在原始音频中随机选取一段
-        audio_data = self.audio_data_slice(audio_data)
+        if do_audio_data_slice:
+            audio_data = self.audio_data_slice(audio_data)
 
         # 获取fbank特征
         f_bank = audio_util.fbank(audio_data, sr,
@@ -308,11 +337,12 @@ class BasicDataset(Dataset):
     def __getitem__(self, p_index):
         y_a, y_p, y_n, p_nid, p_did, n_nid, n_did = self.__read_audio_tuple__(p_index)
 
-        f_a = self.get_features(y_a)
-        f_p = self.get_features(y_p)
-        f_n = self.get_features(y_n)
+        # f_a = self.get_features(y_a)
+        # f_p = self.get_features(y_p)
+        # f_n = self.get_features(y_n)
 
-        return f_a, f_p, f_n, p_nid, p_did, n_nid, n_did
+        # return f_a, f_p, f_n, p_nid, p_did, n_nid, n_did
+        return p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0
 
     def __len__(self):
         length = len(self.audio_file_list)

@@ -8,3 +8,4 @@ scipy
 torchnet
 matplotlib
 fire
+prefetch_generator
