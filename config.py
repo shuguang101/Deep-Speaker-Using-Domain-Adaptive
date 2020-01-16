@@ -42,6 +42,10 @@ class DefaultConfig(object):
     do_augmentation = True
     # 是否固定锚点
     fixed_anchor = False
+
+    do_feature_cache = True
+    feature_cache_root_dir = '/media/HDisk_2T/data/cache_data/'
+
     # data loader 进程数
     num_workers = 4
     # batch size

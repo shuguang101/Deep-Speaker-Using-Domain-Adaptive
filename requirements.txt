@@ -9,3 +9,4 @@ torchnet
 matplotlib
 fire
 prefetch_generator
+h5py

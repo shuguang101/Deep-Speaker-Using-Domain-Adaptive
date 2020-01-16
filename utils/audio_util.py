@@ -58,7 +58,7 @@ def fbank(audio_data, audio_sr, **kwargs):
     n_mels = kwargs.get('n_mels', 256)
 
     spec_data = librosa.stft(audio_data, n_fft=n_fft, hop_length=hop_length,
-                             window=window, win_length=win_length, center=True)
+                             window=window, win_length=win_length, center=False)
 
     # 获取幅值频谱及相位
     magnitude, phase = np.abs(spec_data), np.angle(spec_data)

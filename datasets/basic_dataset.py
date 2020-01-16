@@ -100,6 +100,12 @@ class BasicDataset(Dataset):
                 if not is_params_changed:
                     obj = obj_cache
                     obj.is_loaded_from_pkl = True
+                    obj.do_feature_cache = kwargs['do_feature_cache']
+                    obj.feature_cache_root_dir = kwargs['feature_cache_root_dir']
+                    if not hasattr(obj, 'used_nframe_spec'):
+                        n_fft = kwargs['n_fft']
+                        hop_length = kwargs['hop_length']
+                        obj.used_nframe_spec = 1 + int((obj.used_nframe - n_fft) / hop_length)
 
             if obj_cache is None:
                 print('read the cache file failed, re scan the audio files', flush=True)
@@ -131,7 +137,8 @@ class BasicDataset(Dataset):
         is_eq = self.__my_id_str__() == o.__my_id_str__()
         return is_eq
 
-    def __init__(self, root_directory, dataset_type_name='train', dataset_tuple=(), **kwargs):
+    def __init__(self, root_directory, dataset_type_name='train', dataset_tuple=(),
+                 do_feature_cache=False, feature_cache_root_dir='/', **kwargs):
 
         if hasattr(self, 'is_loaded_from_pkl'):
             print('[cached][%s] using audio files in' % dataset_type_name, root_directory, end=', ', flush=True)
@@ -155,6 +162,9 @@ class BasicDataset(Dataset):
                 print('warning: lack the parameter "%s", using default value: %s' % (key, val))
             self.other_params[key] = val
 
+        self.do_feature_cache = do_feature_cache
+        self.feature_cache_root_dir = feature_cache_root_dir
+
         # 数据集根目录
         self.root_directory = root_directory
         # 数据集类型名称: train, dev, test等
@@ -166,7 +176,11 @@ class BasicDataset(Dataset):
         # 域个数
         self.num_of_domain = max(1, len(dataset_tuple))
         # 选取的原始音频帧长度
-        self.used_nframe = int(kwargs.get('used_duration', 2.0) * kwargs.get('sr', 44100))
+        self.used_nframe = int(self.other_params['used_duration'] * self.other_params['sr'])
+        # spec帧长度
+        n_fft = self.other_params['n_fft']
+        hop_length = self.other_params['hop_length']
+        self.used_nframe_spec = 1 + int((self.used_nframe - n_fft) / hop_length)
 
         # 获取录音文件字典
         # if root_directory is not None:
@@ -256,12 +270,11 @@ class BasicDataset(Dataset):
         n_nid = self.sid2nid_dict[n_sid]
         n_did = self.sid2did_dict[n_sid]
 
-        # 读取音频数据
-        y_a = audio_util.load_audio_as_mono(a_path, self.other_params['sr'])
-        y_p = audio_util.load_audio_as_mono(p_path, self.other_params['sr'])
-        y_n = audio_util.load_audio_as_mono(n_path, self.other_params['sr'])
+        f_a = self.get_features(a_path)
+        f_p = self.get_features(p_path)
+        f_n = self.get_features(n_path)
 
-        return y_a, y_p, y_n, p_nid, p_did, n_nid, n_did
+        return f_a, f_p, f_n, p_nid, p_did, n_nid, n_did
 
     def is_valid_audio(self, audio_path):
         # 通过判断该音频文件能否正常读取及音频时长进行判断
@@ -279,16 +292,19 @@ class BasicDataset(Dataset):
         return result
 
     def audio_data_slice(self, audio_data):
-        if audio_data.shape[0] < self.used_nframe:
+        is_spec_data = len(audio_data.shape) > 1 and audio_data.shape[1] > 2
+        nframe = self.used_nframe_spec if is_spec_data else self.used_nframe
+
+        if audio_data.shape[0] >= nframe:
             # 从原始音频数据中截取一定长度的音频
-            index = random.randint(0, audio_data.shape[0] - self.used_nframe)
-            sliced_audio_data = audio_data[index:index + self.used_nframe]
+            index = random.randint(0, audio_data.shape[0] - nframe)
+            sliced_audio_data = audio_data[index:index + nframe]
         else:
             sliced_audio_data = audio_data
 
         return sliced_audio_data
 
-    def get_features(self, audio_data, do_audio_data_slice=True):
+    def get_fbank(self, audio_data, do_audio_slice):
         # 获取音频采样频率
         sr = self.other_params['sr']
         # 是否进行augmentation, shape会发生变化(time_dim 会边长或变短)
@@ -310,7 +326,7 @@ class BasicDataset(Dataset):
         audio_data = audio_util.de_noise(audio_data, sr)
 
         # 在原始音频中随机选取一段
-        if do_audio_data_slice:
+        if do_audio_slice:
             audio_data = self.audio_data_slice(audio_data)
 
         # 获取fbank特征
@@ -334,15 +350,35 @@ class BasicDataset(Dataset):
         # features shape: [time_dim, feature_dim]
         return f_bank
 
+    def get_features(self, audio_path):
+
+        if self.do_feature_cache:
+            cache_path = os.path.join(self.feature_cache_root_dir, audio_path[1:] + '.cache.npy').replace(':', '')
+            cache_path_pdir = os.path.dirname(cache_path)
+            if not os.path.exists(cache_path_pdir):
+                os.makedirs(cache_path_pdir)
+
+            if not os.path.exists(cache_path):
+                audio_data = audio_util.load_audio_as_mono(audio_path, self.other_params['sr'])
+                f_bank = self.get_fbank(audio_data, False)
+
+                save_len_spec = max(self.used_nframe_spec, f_bank.shape[0] // 2)
+                np.save(cache_path, f_bank[0:save_len_spec])
+
+                f_bank = self.audio_data_slice(f_bank)
+            else:
+                f_bank = np.load(cache_path)
+                f_bank = self.audio_data_slice(f_bank)
+        else:
+            audio_data = audio_util.load_audio_as_mono(audio_path, self.other_params['sr'])
+            f_bank = self.get_fbank(audio_data, True)
+
+        return f_bank
+
     def __getitem__(self, p_index):
-        y_a, y_p, y_n, p_nid, p_did, n_nid, n_did = self.__read_audio_tuple__(p_index)
+        f_a, f_p, f_n, p_nid, p_did, n_nid, n_did = self.__read_audio_tuple__(p_index)
 
-        # f_a = self.get_features(y_a)
-        # f_p = self.get_features(y_p)
-        # f_n = self.get_features(y_n)
-
-        # return f_a, f_p, f_n, p_nid, p_did, n_nid, n_did
-        return p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0, p_index * 1.0
+        return f_a, f_p, f_n, p_nid, p_did, n_nid, n_did
 
     def __len__(self):
         length = len(self.audio_file_list)
@@ -355,8 +391,6 @@ class BasicDataset(Dataset):
         nid = nid % self.num_of_speakers
         sid = self.nid2sid_dict[nid]
 
-        # 获取音频采样频率
-        sr = self.other_params['sr']
         # 获取sid对应的音频文件路径列表
         path_list = self.speaker_dict[sid]
 
@@ -364,8 +398,7 @@ class BasicDataset(Dataset):
         for i, path in enumerate(path_list):
             if i >= max_bs:
                 break
-            y = audio_util.load_audio_as_mono(path, sr)
-            f = self.get_features(y)
+            f = self.get_features(path)
             speaker_data_list.append(f)
 
         if len(speaker_data_list) >= min_bs:
@@ -387,9 +420,6 @@ class BasicDataset(Dataset):
         speaker_icon_list = []
         speaker_id_list = []
 
-        # 获取音频采样频率
-        sr = self.other_params['sr']
-
         selected_sids = random.sample(self.sorted_sids_list, num_of_speaker)
         count = 0
         while count < batch_size:
@@ -400,8 +430,7 @@ class BasicDataset(Dataset):
             path_list = self.speaker_dict[sid]
             path = random.choice(path_list)
             # 读取音频,抽取特征
-            y = audio_util.load_audio_as_mono(path, sr)
-            f = self.get_features(y)
+            f = self.get_features(path)
 
             speaker_data_list.append(f)
             speaker_icon_list.append(self.nid2icon_dict[nid])
@@ -419,8 +448,7 @@ class BasicDataset(Dataset):
             nid = self.sid2nid_dict[sid]
             paths = self.eval_used_dict[sid]
             for path in paths:
-                y = audio_util.load_audio_as_mono(path, self.other_params['sr'])
-                f = self.get_features(y)
+                f = self.get_features(path)
                 data_list.append(f)
                 nid_list.append(nid)
             # 生成batch数据
