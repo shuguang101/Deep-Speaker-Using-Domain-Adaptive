@@ -13,7 +13,7 @@ class DataLoaderX(DataLoader):
 
     # https://github.com/justheuristic/prefetch_generator
     def __iter__(self):
-        return BackgroundGenerator(super().__iter__(), 3)
+        return BackgroundGenerator(super().__iter__(), 2)
 
 
 class NoBlockGenerator(object):

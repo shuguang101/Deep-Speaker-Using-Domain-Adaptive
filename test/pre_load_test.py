@@ -31,20 +31,20 @@ if __name__ == '__main__':
 
     print(vox1.do_feature_cache, vox1.feature_cache_root_dir, vox1.used_nframe)
     total = 0
-    # for i in range(2):
-    #     for ii, (y_a, y_p, y_n, p_nid, p_did, n_nid, n_did) in enumerate(dl):
-    #         y_a = y_a.to(device)
-    #         y_p = y_p.to(device)
-    #         y_n = y_n.to(device)
-    #         p_nid = p_nid.to(device)
-    #         p_did = p_did.to(device)
-    #         n_nid = n_nid.to(device)
-    #         n_did = n_did.to(device)
-    #         total += y_a.shape[0]
-    # t2 = time.time()
-    # print(t2 - t1, flush=True)
-    #
-    # t1 = time.time()
+    for i in range(2):
+        for ii, (y_a, y_p, y_n, p_nid, p_did, n_nid, n_did) in enumerate(dl):
+            y_a = y_a.to(device)
+            y_p = y_p.to(device)
+            y_n = y_n.to(device)
+            p_nid = p_nid.to(device)
+            p_did = p_did.to(device)
+            n_nid = n_nid.to(device)
+            n_did = n_did.to(device)
+            total += y_a.shape[0]
+    t2 = time.time()
+    print(t2 - t1, flush=True)
+
+    t1 = time.time()
     for i in range(2):
         pre_fetcher = DataPreFetcher(dl, device)
         batch = pre_fetcher.next()
