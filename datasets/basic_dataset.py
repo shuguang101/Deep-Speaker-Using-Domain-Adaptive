@@ -353,22 +353,26 @@ class BasicDataset(Dataset):
     def get_features(self, audio_path):
 
         if self.do_feature_cache:
-            cache_path = os.path.join(self.feature_cache_root_dir, audio_path[1:] + '.cache.npy').replace(':', '')
-            cache_path_pdir = os.path.dirname(cache_path)
-            if not os.path.exists(cache_path_pdir):
-                os.makedirs(cache_path_pdir)
+            try:
+                cache_path = os.path.join(self.feature_cache_root_dir, audio_path[1:] + '.cache.npy').replace(':', '')
+                cache_path_pdir = os.path.dirname(cache_path)
+                if not os.path.exists(cache_path_pdir):
+                    os.makedirs(cache_path_pdir)
 
-            if not os.path.exists(cache_path):
+                if not os.path.exists(cache_path):
+                    audio_data = audio_util.load_audio_as_mono(audio_path, self.other_params['sr'])
+                    f_bank = self.get_fbank(audio_data, False)
+
+                    save_len_spec = max(self.used_nframe_spec, f_bank.shape[0] // 2)
+                    np.save(cache_path, f_bank[0:save_len_spec])
+
+                    f_bank = self.audio_data_slice(f_bank)
+                else:
+                    f_bank = np.load(cache_path)
+                    f_bank = self.audio_data_slice(f_bank)
+            except Exception:
                 audio_data = audio_util.load_audio_as_mono(audio_path, self.other_params['sr'])
-                f_bank = self.get_fbank(audio_data, False)
-
-                save_len_spec = max(self.used_nframe_spec, f_bank.shape[0] // 2)
-                np.save(cache_path, f_bank[0:save_len_spec])
-
-                f_bank = self.audio_data_slice(f_bank)
-            else:
-                f_bank = np.load(cache_path)
-                f_bank = self.audio_data_slice(f_bank)
+                f_bank = self.get_fbank(audio_data, True)
         else:
             audio_data = audio_util.load_audio_as_mono(audio_path, self.other_params['sr'])
             f_bank = self.get_fbank(audio_data, True)
