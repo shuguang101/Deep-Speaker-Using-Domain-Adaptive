@@ -80,25 +80,6 @@ def train(**kwargs):
     identity_speaker_data_gen = train_dataset.identity_speaker_data_gen_forever(opt.batch_size)
     test_dataset, test_dataloader = common_util.load_data(opt, **dataset_test_param)
 
-    # # 读取测试数据
-    # from datasets.voxceleb1 import VoxCeleb1
-    # from datasets.voxceleb2 import VoxCeleb2
-    # from torch.utils.data import DataLoader
-    # import copy
-    # train_dataset1 = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
-    # train_dataset2 = VoxCeleb2(opt.test_used_dataset + '1', **dataset_test_param)
-    # from datasets.merged_dataset import MergedDataset
-    # train_dataset = MergedDataset(None, dataset_tuple=(train_dataset1,
-    #                                                    train_dataset2), **dataset_test_param)
-    # train_dataloader = DataLoader(train_dataset,
-    #                               shuffle=opt.shuffle,
-    #                               batch_size=opt.batch_size,
-    #                               num_workers=opt.num_workers,
-    #                               pin_memory=opt.pin_memory,
-    #                               timeout=opt.dataloader_timeout)
-    # identity_speaker_data_gen = train_dataset.identity_speaker_data_gen_forever(opt.batch_size)
-    # test_dataset, test_dataloader = copy.deepcopy(train_dataset), copy.deepcopy(train_dataloader)
-
     # tensor board summary writer
     summary_writer = SummaryWriter(log_dir=os.path.join(fdir, 'net_data/summary_log_dir/train/'))
 

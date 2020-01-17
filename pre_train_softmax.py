@@ -13,15 +13,12 @@ import os
 import datetime
 
 from torchnet import meter
-from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
 from config import opt
 from utils import common_util
 from nets.speaker_net_cnn import SpeakerNetFC
 from nets.discriminator_cnn import DANet
-from datasets.voxceleb1 import VoxCeleb1
-from datasets.voxceleb2 import VoxCeleb2
 
 
 def do_net_eval(**kwargs):
@@ -85,23 +82,8 @@ def train(**kwargs):
 
     # 数据集参数
     dataset_train_param = {**params_dict, **{'dataset_type_name': 'train'}}
-    dataset_test_param = {**params_dict, **{'dataset_type_name': 'test'}}
     # 读取训练数据
     train_dataset, train_dataloader = common_util.load_data(opt, **dataset_train_param)
-
-    # 读取测试数据
-    # train_dataset1 = VoxCeleb1(opt.test_used_dataset, **dataset_test_param)
-    # train_dataset2 = VoxCeleb2(opt.test_used_dataset + '1', **dataset_test_param)
-    #
-    # from datasets.merged_dataset import MergedDataset
-    # train_dataset = MergedDataset(None, dataset_tuple=(train_dataset1,
-    #                                                    train_dataset2), **dataset_test_param)
-    # train_dataloader = DataLoader(train_dataset,
-    #                               shuffle=opt.shuffle,
-    #                               batch_size=opt.batch_size,
-    #                               num_workers=opt.num_workers,
-    #                               pin_memory=opt.pin_memory,
-    #                               timeout=opt.dataloader_timeout)
 
     # tensor board summary writer
     summary_writer = SummaryWriter(log_dir=os.path.join(fdir, 'net_data/summary_log_dir/pre_train/'))

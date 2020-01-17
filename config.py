@@ -82,7 +82,7 @@ class DefaultConfig(object):
     # the max percentage of speakers: 58.07% (vox2 5994)
     # the max percentage of audio files: 67.22% (vox2 1092009)
     da_avg_acc_th = 0.70
-    da_every_step = 2
+    da_every_step = 5
     da_lambda = 1.0
 
     # 打印时机

@@ -7,7 +7,8 @@ from datasets.st_cmds_20170001_1 import ST_CMDS_20170001_1
 from datasets.voxceleb2 import VoxCeleb2
 from datasets.voxceleb1 import VoxCeleb1
 from datasets.merged_dataset import MergedDataset
-from torch.utils.data import DataLoader
+# from torch.utils.data import DataLoader
+from datasets.my_dataloader import DataLoaderX as DataLoader
 
 
 def get_all_attribute(obj):
