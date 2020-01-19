@@ -10,3 +10,5 @@ matplotlib
 fire
 prefetch_generator
 h5py
+lmdb
+nonechucks

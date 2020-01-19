@@ -15,6 +15,7 @@ from collections import Iterable
 from torch.utils.data import Dataset
 from utils import audio_util
 from utils import pil_util
+from utils.lmdb_util import LMDBUtil
 
 
 class BasicDataset(Dataset):
@@ -37,8 +38,9 @@ class BasicDataset(Dataset):
             # os.path.getctime -> float, 1573207494.7295158
             file_list = list(map(lambda fp: (fp, os.path.getctime(fp)), file_list))
             # Descending
-            file_list = list(sorted(file_list, key=lambda x: x[1], reverse=True))
-            with open(file_list[0][0], 'rb') as f:
+            pkl_file_list = list(sorted(file_list, key=lambda x: x[1], reverse=True))
+            data_file_path = pkl_file_list[0][0]
+            with open(data_file_path, 'rb') as f:
                 self_obj = pickle.load(f)
             print('successful loaded the cache file: %s' % file_list[0][0], flush=True)
         except Exception:
@@ -46,6 +48,8 @@ class BasicDataset(Dataset):
         return self_obj
 
     def dump_self(self):
+        self.lmdb_obj = None
+
         fdir = os.path.split(os.path.abspath(__file__))[0]
         save_dir = os.path.join(fdir, '../net_data/datasets_caches/')
         class_name = self.__class__.__name__
@@ -58,6 +62,7 @@ class BasicDataset(Dataset):
                      'num_of_speakers': self.num_of_speakers,
                      'num_files_split_for_eval': len(self.eval_used_dict),
                      'num_of_audio_file_list': len(self.audio_file_list),
+                     'lmdb_cache_file_path': self.lmdb_cache_file_path,
                      'dataset_type_name': self.dataset_type_name,
                      'dataset_tuple_list': list(map(lambda ds: ds.__class__.__name__, self.dataset_tuple_list))},
                   **self.other_params}
@@ -106,6 +111,24 @@ class BasicDataset(Dataset):
                         n_fft = kwargs['n_fft']
                         hop_length = kwargs['hop_length']
                         obj.used_nframe_spec = 1 + int((obj.used_nframe - n_fft) / hop_length)
+
+                    is_lmdb_file_load_success = False
+                    if hasattr(obj, 'lmdb_cache_file_path') and os.path.exists(obj.lmdb_cache_file_path):
+                        try:
+                            obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path, readonly=True)
+                            is_lmdb_file_load_success = True
+                        except Exception:
+                            is_lmdb_file_load_success = False
+
+                    if not is_lmdb_file_load_success:
+                        print('load lmdb file failed, a new file is created', flush=True)
+                        date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
+                        class_name = obj.__class__.__name__
+                        obj.lmdb_cache_file_path = os.path.join(obj.feature_cache_root_dir,
+                                                                '%s__%s_lmdb' % (class_name, date_str))
+
+                        obj.dump_self()
+                        obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path)
 
             if obj_cache is None:
                 print('read the cache file failed, re scan the audio files', flush=True)
@@ -164,6 +187,12 @@ class BasicDataset(Dataset):
 
         self.do_feature_cache = do_feature_cache
         self.feature_cache_root_dir = feature_cache_root_dir
+        if not os.path.exists(feature_cache_root_dir):
+            os.makedirs(feature_cache_root_dir)
+
+        date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
+        class_name = self.__class__.__name__
+        self.lmdb_cache_file_path = os.path.join(feature_cache_root_dir, '%s__%s_lmdb' % (class_name, date_str))
 
         # 数据集根目录
         self.root_directory = root_directory
@@ -246,6 +275,7 @@ class BasicDataset(Dataset):
                                                                           len(self.eval_used_dict) * 2), flush=True)
         if not hasattr(self, 'is_loaded_from_pkl'):
             self.dump_self()
+        self.lmdb_obj = LMDBUtil(self.lmdb_cache_file_path)
 
     def __read_audio_tuple__(self, p_index):
         # get positive path
