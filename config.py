@@ -52,7 +52,7 @@ class DefaultConfig(object):
     # 64: pre 6g.
     batch_size = 16
     # data loader 超时时间
-    dataloader_timeout = 120
+    dataloader_timeout = 60 * 5
     # data loader是否进行shuffle
     shuffle = False
     #
@@ -86,7 +86,7 @@ class DefaultConfig(object):
     da_lambda = 0.9
 
     # 打印时机
-    print_every_step = 100
+    print_every_step = 300
     # 保存时机(0-1.0], 默认每个epoch保存两次(1/2处及epoch结尾处)
     save_points_list = [0.5, 1.0]
     # last_checkpoint.pth 保存间隔(单位step)

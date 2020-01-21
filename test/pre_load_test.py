@@ -1,5 +1,10 @@
 # -*- coding:utf-8 -*-
 
+if __name__ == '__main__':
+    # use 'spawn' in main file's first line, to prevent deadlock occur
+    import multiprocessing
+
+    multiprocessing.set_start_method('spawn', True)
 
 import torch
 import time
@@ -8,6 +13,7 @@ from torch.utils.data import DataLoader
 from config import opt
 from utils import common_util
 from datasets.voxceleb1 import VoxCeleb1
+from datasets.merged_dataset import MergedDataset
 from datasets.data_pre_fetcher import DataPreFetcher
 from datasets.my_dataloader import DataLoaderX, NoBlockDataLoader
 
@@ -20,14 +26,17 @@ if __name__ == '__main__':
     params_dict['dataset_type_name'] = 'test'
     params_dict['feature_cache_root_dir'] = '/media/HDisk_2T/data/cache_data/'
     params_dict['do_feature_cache'] = True
-    vox1 = VoxCeleb1(root_directory, **params_dict)
+    vox1 = VoxCeleb1(root_directory, **{**params_dict, **{'do_feature_cache': False}})
+    vox1 = MergedDataset(None, dataset_tuple=(
+        vox1,),
+                         **params_dict)
 
     device = torch.device('cuda')
 
     t1 = time.time()
-    # dl = DataLoader(vox1, batch_size=256, num_workers=3)  # 68.2 8.22, 66.4
+    dl = DataLoader(vox1, batch_size=256, num_workers=3)  # 68.2 8.22, 66.4
     # dl = DataLoaderX(vox1, batch_size=256, num_workers=3)  # 65.4 8.13, 63.4
-    dl = NoBlockDataLoader(vox1, batch_size=256, num_workers=3)  # 68.3 7.9, 68.1
+    # dl = NoBlockDataLoader(vox1, batch_size=256, num_workers=3)  # 68.3 7.9, 68.1
 
     print(vox1.do_feature_cache, vox1.feature_cache_root_dir, vox1.used_nframe)
     total = 0

@@ -107,28 +107,31 @@ class BasicDataset(Dataset):
                     obj.is_loaded_from_pkl = True
                     obj.do_feature_cache = kwargs['do_feature_cache']
                     obj.feature_cache_root_dir = kwargs['feature_cache_root_dir']
+                    obj.lmdb_obj = None
                     if not hasattr(obj, 'used_nframe_spec'):
                         n_fft = kwargs['n_fft']
                         hop_length = kwargs['hop_length']
                         obj.used_nframe_spec = 1 + int((obj.used_nframe - n_fft) / hop_length)
 
-                    is_lmdb_file_load_success = False
-                    if hasattr(obj, 'lmdb_cache_file_path') and os.path.exists(obj.lmdb_cache_file_path):
-                        try:
-                            obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path, readonly=True)
-                            is_lmdb_file_load_success = True
-                        except Exception:
-                            is_lmdb_file_load_success = False
+                    if obj.do_feature_cache:
+                        is_lmdb_file_load_success = False
+                        if hasattr(obj, 'lmdb_cache_file_path') and os.path.exists(obj.lmdb_cache_file_path):
+                            try:
+                                obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path, readonly=True, lock=False)
+                                print('using lmdb file: %s' % obj.lmdb_cache_file_path, flush=True)
+                                is_lmdb_file_load_success = True
+                            except Exception:
+                                is_lmdb_file_load_success = False
 
-                    if not is_lmdb_file_load_success:
-                        print('load lmdb file failed, a new file is created', flush=True)
-                        date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
-                        class_name = obj.__class__.__name__
-                        obj.lmdb_cache_file_path = os.path.join(obj.feature_cache_root_dir,
-                                                                '%s__%s_lmdb' % (class_name, date_str))
+                        if not is_lmdb_file_load_success:
+                            print('load lmdb file failed, a new file is created', flush=True)
+                            date_str = datetime.datetime.now().strftime('%Y-%m-%d_%H_%M_%S')
+                            class_name = obj.__class__.__name__
+                            obj.lmdb_cache_file_path = os.path.join(obj.feature_cache_root_dir,
+                                                                    '%s__%s_lmdb' % (class_name, date_str))
 
-                        obj.dump_self()
-                        obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path)
+                            obj.dump_self()
+                            obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path)
 
             if obj_cache is None:
                 print('read the cache file failed, re scan the audio files', flush=True)
@@ -275,7 +278,11 @@ class BasicDataset(Dataset):
                                                                           len(self.eval_used_dict) * 2), flush=True)
         if not hasattr(self, 'is_loaded_from_pkl'):
             self.dump_self()
-        self.lmdb_obj = LMDBUtil(self.lmdb_cache_file_path)
+
+        if do_feature_cache:
+            self.lmdb_obj = LMDBUtil(self.lmdb_cache_file_path)
+        else:
+            self.lmdb_obj = None
 
     def __read_audio_tuple__(self, p_index):
         # get positive path
@@ -381,25 +388,14 @@ class BasicDataset(Dataset):
         return f_bank
 
     def get_features(self, audio_path):
-
         if self.do_feature_cache:
             try:
-                cache_path = os.path.join(self.feature_cache_root_dir, audio_path[1:] + '.cache.npy').replace(':', '')
-                cache_path_pdir = os.path.dirname(cache_path)
-                if not os.path.exists(cache_path_pdir):
-                    os.makedirs(cache_path_pdir)
-
-                if not os.path.exists(cache_path):
+                f_bank = self.lmdb_obj.get(audio_path)
+                if f_bank is None:
                     audio_data = audio_util.load_audio_as_mono(audio_path, self.other_params['sr'])
                     f_bank = self.get_fbank(audio_data, False)
-
-                    save_len_spec = max(self.used_nframe_spec, f_bank.shape[0] // 2)
-                    np.save(cache_path, f_bank[0:save_len_spec])
-
-                    f_bank = self.audio_data_slice(f_bank)
-                else:
-                    f_bank = np.load(cache_path)
-                    f_bank = self.audio_data_slice(f_bank)
+                    self.lmdb_obj.put(audio_path, f_bank)
+                f_bank = self.audio_data_slice(f_bank)
             except Exception:
                 audio_data = audio_util.load_audio_as_mono(audio_path, self.other_params['sr'])
                 f_bank = self.get_fbank(audio_data, True)

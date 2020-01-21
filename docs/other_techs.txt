@@ -1,0 +1,4 @@
+RAM Disk
+LMDB about 65% reduction in time iterating over images dataset(pytorch)
+nvidia apex: tools for easy mixed precision and distributed training in pytorch
+nvidia dali: data loading library

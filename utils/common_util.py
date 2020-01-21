@@ -27,11 +27,13 @@ def get_all_attribute(obj):
 
 
 def load_data(opt, **kwargs):
+    kwargs_tmp = {**dict(kwargs), **{'do_feature_cache': False}}
+
     # 读取数据
-    st_cmds_20170001_1 = ST_CMDS_20170001_1(opt.st_cmds_20170001_1, **kwargs)
-    librispeech = LibriSpeech(opt.libriSpeech, **kwargs)
-    voxceleb1 = VoxCeleb1(opt.voxceleb1, **kwargs)
-    voxceleb2 = VoxCeleb2(opt.voxceleb2, **kwargs)
+    st_cmds_20170001_1 = ST_CMDS_20170001_1(opt.st_cmds_20170001_1, **kwargs_tmp)
+    librispeech = LibriSpeech(opt.libriSpeech, **kwargs_tmp)
+    voxceleb1 = VoxCeleb1(opt.voxceleb1, **kwargs_tmp)
+    voxceleb2 = VoxCeleb2(opt.voxceleb2, **kwargs_tmp)
     merged_data = MergedDataset(None, dataset_tuple=(
         st_cmds_20170001_1,
         librispeech,

@@ -11,6 +11,9 @@ class MergedDataset(BasicDataset):
 
         speaker_dict_all = dict()
         for i, dataset_i in enumerate(self.dataset_tuple_list):
+            assert dataset_i.do_feature_cache is False
+
+            dataset_i.lmdb_obj = None
             speaker_dict = dataset_i.speaker_dict
             for speaker_id in list(sorted(speaker_dict.keys())):
                 path_set = set(speaker_dict[speaker_id])
