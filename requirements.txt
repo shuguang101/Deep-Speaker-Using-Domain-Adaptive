@@ -12,3 +12,4 @@ prefetch_generator
 h5py
 lmdb
 nonechucks
+nvidia-dali
