@@ -5,7 +5,7 @@ if __name__ == '__main__':
     # use 'spawn' in main file's first line, to prevent deadlock occur
     import multiprocessing
 
-    multiprocessing.set_start_method('spawn')
+    multiprocessing.set_start_method('forkserver')
 
 import fire
 import torch
