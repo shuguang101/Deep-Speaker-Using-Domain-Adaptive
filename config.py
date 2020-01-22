@@ -52,7 +52,7 @@ class DefaultConfig(object):
     # 64: pre 6g.
     batch_size = 16
     # data loader 超时时间
-    dataloader_timeout = 60 * 5
+    dataloader_timeout = 60 * 2
     # data loader是否进行shuffle
     shuffle = False
     #

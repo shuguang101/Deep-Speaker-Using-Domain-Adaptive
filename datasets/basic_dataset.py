@@ -117,7 +117,8 @@ class BasicDataset(Dataset):
                         is_lmdb_file_load_success = False
                         if hasattr(obj, 'lmdb_cache_file_path') and os.path.exists(obj.lmdb_cache_file_path):
                             try:
-                                obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path, readonly=True, lock=False)
+                                # obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path, readonly=True, lock=False)
+                                obj.lmdb_obj = LMDBUtil(obj.lmdb_cache_file_path)
                                 print('using lmdb file: %s' % obj.lmdb_cache_file_path, flush=True)
                                 is_lmdb_file_load_success = True
                             except Exception:

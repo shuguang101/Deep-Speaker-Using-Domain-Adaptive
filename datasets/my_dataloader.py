@@ -1,8 +1,7 @@
 # -*- coding:utf-8 -*-
 
+import math
 import multiprocessing
-import time
-
 from torch.utils.data import DataLoader
 from torch.utils.data.dataloader import default_collate
 from prefetch_generator import BackgroundGenerator
@@ -25,6 +24,7 @@ class NoBlockGenerator(object):
         self.num_workers = no_block_dl.num_workers
         self.batch_size = no_block_dl.batch_size
         self.each_worker_max_prefetch = no_block_dl.each_worker_max_prefetch
+        self.drop_last = no_block_dl.drop_last
 
         # raw params
         params_dict = {
@@ -35,10 +35,10 @@ class NoBlockGenerator(object):
             'timeout': no_block_dl.timeout, 'worker_init_fn': no_block_dl.worker_init_fn
         }
         # worker params
-        worker_params_dict = {**params_dict, **{'num_workers': 1}}
+        self.worker_params_dict = {**params_dict, **{'num_workers': 0}}
 
         self.job_list = list()
-        self.loaders_list = list()
+        self.dataset_list = list()
         self.total_len = 0
         ds_len = self.dataset.__len__()
         num_workers = max(1, self.num_workers)
@@ -48,29 +48,32 @@ class NoBlockGenerator(object):
         start = 0
         for i in range(num_workers - 1):
             ds = SlicedDataset(self.dataset, start, start + worker_size)
-            dl = DataLoader(ds, **worker_params_dict)
-            self.total_len += dl.__len__()
-            self.loaders_list.append(dl)
+            self.dataset_list.append(ds)
+            if self.drop_last:
+                self.total_len += math.floor(ds.__len__() / self.batch_size)
+            else:
+                self.total_len += math.ceil(ds.__len__() / self.batch_size)
             start += worker_size
 
         ds = SlicedDataset(self.dataset, start, ds_len)
-        dl = DataLoader(ds, **worker_params_dict)
-        self.total_len += dl.__len__()
-        self.loaders_list.append(dl)
+        self.dataset_list.append(ds)
+        if self.drop_last:
+            self.total_len += math.floor(ds.__len__() / self.batch_size)
+        else:
+            self.total_len += math.ceil(ds.__len__() / self.batch_size)
+
         self.current_index = 0
-
         mgr = multiprocessing.Manager()
-        self.queue = mgr.Queue(maxsize=self.each_worker_max_prefetch * len(self.loaders_list))
+        self.queue = mgr.Queue(maxsize=self.each_worker_max_prefetch * len(self.dataset_list))
 
-        for dl in self.loaders_list:
-            job = multiprocessing.Process(target=self.loader_worker,
-                                          args=(dl, self.queue))
-            # job.daemon = True
+        for ds in self.dataset_list:
+            job = multiprocessing.Process(target=self.loader_worker, args=(ds, self.queue, self.worker_params_dict))
             job.start()
             self.job_list.append(job)
 
     @staticmethod
-    def loader_worker(dl, queue):
+    def loader_worker(ds, queue, worker_params_dict):
+        dl = DataLoader(ds, **worker_params_dict)
         for batch in dl:
             queue.put(batch)
 

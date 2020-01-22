@@ -4,7 +4,7 @@ if __name__ == '__main__':
     # use 'spawn' in main file's first line, to prevent deadlock occur
     import multiprocessing
 
-    multiprocessing.set_start_method('spawn', True)
+    multiprocessing.set_start_method('fork', True)
 
 import torch
 import time
@@ -34,9 +34,9 @@ if __name__ == '__main__':
     device = torch.device('cuda')
 
     t1 = time.time()
-    dl = DataLoader(vox1, batch_size=256, num_workers=3)  # 68.2 8.22, 66.4
-    # dl = DataLoaderX(vox1, batch_size=256, num_workers=3)  # 65.4 8.13, 63.4
-    # dl = NoBlockDataLoader(vox1, batch_size=256, num_workers=3)  # 68.3 7.9, 68.1
+    dl = DataLoader(vox1, batch_size=64, num_workers=12)  # forkserver 175.6 89.5, fork: 96.3 8.9
+    # dl = DataLoaderX(vox1, batch_size=64, num_workers=12)  # forkserver 175.0 88.6
+    # dl = NoBlockDataLoader(vox1, batch_size=64, num_workers=12)  # forkserver 138.9 95.7, fork: 94.5
 
     print(vox1.do_feature_cache, vox1.feature_cache_root_dir, vox1.used_nframe)
     total = 0
